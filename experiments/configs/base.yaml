@@ -1,0 +1,18 @@
+model:
+  d_model: 512
+  n_layers: 8
+  n_heads: 8
+  d_ff: 2048
+  dropout: 0.1
+  representation: fen_tokens # or planes_8x8
+  vocab_size: 1968
+
+training:
+  batch_size: 128
+  lr: 3e-4
+  epochs: 50
+  mixed_precision: bf16
+
+data:
+  elo_threshold: 2000
+  max_positions: 5000000

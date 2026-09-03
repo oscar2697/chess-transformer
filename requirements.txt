@@ -1,0 +1,14 @@
+torch>=2.2
+chess
+python-chess
+transformers
+langgraph
+langchain
+arxiv
+pyspark
+streamlit
+pygame
+matplotlib
+scikit-learn
+pyyaml
+wandb

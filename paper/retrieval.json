@@ -1,0 +1,82 @@
+[
+  {
+    "id": "1706.03762",
+    "full_id": "1706.03762v7",
+    "title": "Attention Is All You Need",
+    "authors": [
+      "Ashish Vaswani",
+      "Noam Shazeer",
+      "Niki Parmar",
+      "Jakob Uszkoreit",
+      "Llion Jones",
+      "Aidan N. Gomez",
+      "Lukasz Kaiser",
+      "Illia Polosukhin"
+    ],
+    "summary": "The dominant sequence transduction models are based on complex recurrent or convolutional neural networks in an encoder-decoder configuration. The best performing models also connect the encoder and decoder through an attention mechanism. We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely. Experiments on two machine translation tasks show these models to be superior in quality while being more parallelizable and requiring significantly less time to train. Our model achieves 28.4 BLEU on the WMT 2014 English-to-German translation task, improving over the existing best results, including ensembles by over 2 BLEU. On the WMT 2014 English-to-French translation task, our model establishes a new single-model state-of-the-art BLEU score of 41.8 after training for 3.5 days on eight GPUs, a small fraction of the training costs of the best models from the literature. We show that the Transformer generalizes well to other tasks by applying it successfully to English constituency parsing both with large and limited training data.",
+    "published": "2017-06-12",
+    "bibkey": "Vaswani2017_1706_03762"
+  },
+  {
+    "id": "2106.01345",
+    "full_id": "2106.01345v2",
+    "title": "Decision Transformer: Reinforcement Learning via Sequence Modeling",
+    "authors": [
+      "Lili Chen",
+      "Kevin Lu",
+      "Aravind Rajeswaran",
+      "Kimin Lee",
+      "Aditya Grover",
+      "Michael Laskin",
+      "Pieter Abbeel",
+      "Aravind Srinivas",
+      "Igor Mordatch"
+    ],
+    "summary": "We introduce a framework that abstracts Reinforcement Learning (RL) as a sequence modeling problem. This allows us to draw upon the simplicity and scalability of the Transformer architecture, and associated advances in language modeling such as GPT-x and BERT. In particular, we present Decision Transformer, an architecture that casts the problem of RL as conditional sequence modeling. Unlike prior approaches to RL that fit value functions or compute policy gradients, Decision Transformer simply outputs the optimal actions by leveraging a causally masked Transformer. By conditioning an autoregressive model on the desired return (reward), past states, and actions, our Decision Transformer model can generate future actions that achieve the desired return. Despite its simplicity, Decision Transformer matches or exceeds the performance of state-of-the-art model-free offline RL baselines on Atari, OpenAI Gym, and Key-to-Door tasks.",
+    "published": "2021-06-02",
+    "bibkey": "Chen2021_2106_01345"
+  },
+  {
+    "id": "2402.04494",
+    "full_id": "2402.04494v2",
+    "title": "Amortized Planning with Large-Scale Transformers: A Case Study on Chess",
+    "authors": [
+      "Anian Ruoss",
+      "Gr\u00e9goire Del\u00e9tang",
+      "Sourabh Medapati",
+      "Jordi Grau-Moya",
+      "Li Kevin Wenliang",
+      "Elliot Catt",
+      "John Reid",
+      "Cannada A. Lewis",
+      "Joel Veness",
+      "Tim Genewein"
+    ],
+    "summary": "This paper uses chess, a landmark planning problem in AI, to assess transformers' performance on a planning task where memorization is futile $\\unicode{x2013}$ even at a large scale. To this end, we release ChessBench, a large-scale benchmark dataset of 10 million chess games with legal move and value annotations (15 billion data points) provided by Stockfish 16, the state-of-the-art chess engine. We train transformers with up to 270 million parameters on ChessBench via supervised learning and perform extensive ablations to assess the impact of dataset size, model size, architecture type, and different prediction targets (state-values, action-values, and behavioral cloning). Our largest models learn to predict action-values for novel boards quite accurately, implying highly non-trivial generalization. Despite performing no explicit search, our resulting chess policy solves challenging chess puzzles and achieves a surprisingly strong Lichess blitz Elo of 2895 against humans (grandmaster level). We also compare to Leela Chess Zero and AlphaZero (trained without supervision via self-play) with and without search. We show that, although a remarkably good approximation of Stockfish's search-based algorithm can be distilled into large-scale transformers via supervised learning, perfect distillation is still beyond reach, thus making ChessBench well-suited for future research.",
+    "published": "2024-02-07",
+    "bibkey": "Ruoss2024_2402_04494"
+  },
+  {
+    "id": "1712.01815",
+    "full_id": "1712.01815v1",
+    "title": "Mastering Chess and Shogi by Self-Play with a General Reinforcement Learning Algorithm",
+    "authors": [
+      "David Silver",
+      "Thomas Hubert",
+      "Julian Schrittwieser",
+      "Ioannis Antonoglou",
+      "Matthew Lai",
+      "Arthur Guez",
+      "Marc Lanctot",
+      "Laurent Sifre",
+      "Dharshan Kumaran",
+      "Thore Graepel",
+      "Timothy Lillicrap",
+      "Karen Simonyan",
+      "Demis Hassabis"
+    ],
+    "summary": "The game of chess is the most widely-studied domain in the history of artificial intelligence. The strongest programs are based on a combination of sophisticated search techniques, domain-specific adaptations, and handcrafted evaluation functions that have been refined by human experts over several decades. In contrast, the AlphaGo Zero program recently achieved superhuman performance in the game of Go, by tabula rasa reinforcement learning from games of self-play. In this paper, we generalise this approach into a single AlphaZero algorithm that can achieve, tabula rasa, superhuman performance in many challenging domains. Starting from random play, and given no domain knowledge except the game rules, AlphaZero achieved within 24 hours a superhuman level of play in the games of chess and shogi (Japanese chess) as well as Go, and convincingly defeated a world-champion program in each case.",
+    "published": "2017-12-05",
+    "bibkey": "Silver2017_1712_01815"
+  }
+]
