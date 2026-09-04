@@ -101,13 +101,20 @@ def run_agent(agent: str, task: str, **kwargs):
     """Run one LLM agent: reason (LLM or fallback) then invoke its tool."""
     provider, llm = get_llm()
     if llm is not None:
-        resp = llm.invoke(
-            f"{AGENT_ROLES[agent]}\n\nTask: {task}\n"
-            f"Decide parameters, then state your decision briefly. "
-            f"Your tool ({TOOLS[agent]}) will be invoked with: {kwargs}."
-        )
-        reasoning = resp.content if hasattr(resp, "content") else str(resp)
-        mode = f"llm:{provider}"
+        try:
+            resp = llm.invoke(
+                f"{AGENT_ROLES[agent]}\n\nTask: {task}\n"
+                f"Decide parameters, then state your decision briefly. "
+                f"Your tool ({TOOLS[agent]}) will be invoked with: {kwargs}."
+            )
+            reasoning = resp.content if hasattr(resp, "content") else str(resp)
+            mode = f"llm:{provider}"
+        except Exception as e:
+            # Rate limit / auth / model errors: tool still runs, decision logged
+            reasoning = (f"[{agent}] LLM call failed ({type(e).__name__}: {e}). "
+                         f"Proceeding deterministically with: {kwargs}")
+            mode = f"deterministic (llm-error)"
+            print(reasoning)
     else:
         reasoning = (f"[{agent}] No LLM backend configured (set LLM_PROVIDER + API key). "
                      f"Proceeding deterministically with: {kwargs}")
