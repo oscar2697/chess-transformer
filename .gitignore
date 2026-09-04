@@ -1,0 +1,8 @@
+# Model checkpoints and weights
+checkpoints/
+*.pt
+*.onnx
+
+# Python bytecode/cache
+__pycache__/
+*.pyc
