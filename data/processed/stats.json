@@ -1,0 +1,6 @@
+{
+  "n_train": 475,
+  "n_val": 25,
+  "dedup": 0,
+  "source": "synthetic"
+}
