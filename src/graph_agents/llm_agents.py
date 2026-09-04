@@ -69,7 +69,7 @@ def get_llm():
         if provider == "zen" and os.environ.get("OPENCODE_ZEN_API_KEY"):
             from langchain_openai import ChatOpenAI
             return provider, ChatOpenAI(
-                model=model or "opencode/muse-spark-1.3-contributor-free", temperature=0,
+                model=model or "big-pickle", temperature=0,
                 openai_api_key=os.environ["OPENCODE_ZEN_API_KEY"],
                 openai_api_base="https://opencode.ai/zen/v1")
         if provider == "custom" and os.environ.get("LLM_BASE_URL") and os.environ.get("LLM_API_KEY"):
