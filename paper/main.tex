@@ -14,6 +14,7 @@
 \cite{Silver2017_1712_01815} Mastering Chess and Shogi by Self-Play with a General Reinforcement Learning Algorithm -- The game of chess is the most widely-studied domain in the history of artificial intelligence. The strongest programs are based on a combination of sophisticated search techniques, domain-specific adaptations, and handcr...
 
 \section{Method} Representation: FEN vs planes; Policy/Value heads...
+\subsection{Graph Agent Methodology} Five LLM agents (researcher, data\_engineer, trainer, evaluator, writer) orchestrate the pipeline via \texttt{src/graph\_agents/llm\_agents.py}. Each agent combines a role prompt with a deterministic tool (the corresponding node); with \texttt{LLM\_PROVIDER} + API key it reasons via LLM, otherwise it runs deterministically. Every decision is logged to \texttt{experiments/agent\_log.jsonl} for reproducibility.
 \section{Results \& Evaluation}
 \begin{table}[h]\centering\caption{Training Loss (CE+MSE)}\begin{tabular}{cc}\hline Epoch & Loss \\ \hline
 0 & 7.7940 \\
