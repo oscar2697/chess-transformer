@@ -17,10 +17,12 @@
 \subsection{Graph Agent Methodology} Five LLM agents (researcher, data\_engineer, trainer, evaluator, writer) orchestrate the pipeline via \texttt{src/graph\_agents/llm\_agents.py}. Each agent combines a role prompt with a deterministic tool (the corresponding node); with \texttt{LLM\_PROVIDER} + API key it reasons via LLM, otherwise it runs deterministically. Every decision is logged to \texttt{experiments/agent\_log.jsonl} for reproducibility.
 \section{Results \& Evaluation}
 \begin{table}[h]\centering\caption{Training Loss (CE+MSE)}\begin{tabular}{cc}\hline Epoch & Loss \\ \hline
-0 & 7.7940 \\
+0 & 7.6625 \\
+1 & 7.6178 \\
+2 & 7.6099 \\
 \hline\end{tabular}\end{table}
 
-\begin{table}[h]\centering\caption{Stockfish Evaluation (Top-k & Value MSE)}\begin{tabular}{lcc}\hline Metric & Value \\ \hline Top-1 Accuracy & 0.000 \\ Top-3 Accuracy & 0.000 \\ Value MSE & 0.0223 \\ \hline\end{tabular}\end{table}
+\begin{table}[h]\centering\caption{Stockfish Evaluation (Top-k & Value MSE)}\begin{tabular}{lcc}\hline Metric & Value \\ \hline Top-1 Accuracy & 0.000 \\ Top-3 Accuracy & 0.000 \\ Value MSE & 0.0237 \\ \hline\end{tabular}\end{table}
 
 \section{Attention Analysis} Tactical motifs...
 \section{Conclusion} Future: MCTS integration...

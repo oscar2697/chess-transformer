@@ -1,6 +1,6 @@
 {
-  "n_train": 475,
-  "n_val": 25,
-  "dedup": 0,
-  "source": "synthetic"
+  "n_train": 190000,
+  "n_val": 10000,
+  "dedup": 200000,
+  "source": "/kaggle/working/chess-transformer/data/raw/lichess_elite_2024-01.pgn"
 }

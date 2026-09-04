@@ -3,3 +3,5 @@ checkpoints/
 __pycache__/
 *.pyc
 venv/
+data/raw/data/processed/train.jsonl
+data/processed/val.jsonl
