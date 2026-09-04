@@ -1,5 +1,5 @@
 """Academic retrieval node: canonical arXiv IDs -> JSON + BibTeX + LaTeX patch."""
-import urllib.request, xml.etree.ElementTree as ET, json, pathlib, re
+import urllib.request, urllib.error, xml.etree.ElementTree as ET, json, pathlib, re, time
 
 # Canonical IDs as requested
 CANONICAL_IDS = [
@@ -11,10 +11,20 @@ CANONICAL_IDS = [
 
 ARXIV_NS = {"atom": "http://www.w3.org/2005/Atom"}
 
-def _fetch_by_ids(ids):
+def _fetch_by_ids(ids, retries=3):
     id_list = ",".join(ids)
     url = f"http://export.arxiv.org/api/query?id_list={id_list}"
-    data = urllib.request.urlopen(url, timeout=20).read()
+    headers = {"User-Agent": "Mozilla/5.0 (chess-transformer retrieval; contact: research@example.com)"}
+    req = urllib.request.Request(url, headers=headers)
+    for attempt in range(retries):
+        try:
+            data = urllib.request.urlopen(req, timeout=20).read()
+            break
+        except urllib.error.HTTPError as e:
+            if e.code == 429 and attempt < retries - 1:
+                time.sleep(2 ** attempt * 5)
+                continue
+            raise
     root = ET.fromstring(data)
     out=[]
     for e in root.findall("atom:entry", ARXIV_NS):
@@ -38,13 +48,28 @@ def _to_bibtex(entry, key):
     return f"@article{{{key},\n  title={{{entry['title']}}},\n  author={{{authors}}},\n  journal={{arXiv preprint arXiv:{entry['id']}}},\n  year={{{entry['published'][:4]}}}\n}}\n"
 
 def run_retrieval(output_dir="paper"):
-    results = _fetch_by_ids(CANONICAL_IDS)
+    base = pathlib.Path(__file__).resolve().parents[3] / output_dir
+    base.mkdir(parents=True, exist_ok=True)
+    cached = base / "retrieval.json"
+    # Use cache if non-empty to avoid 429
+    if cached.exists() and cached.stat().st_size > 10:
+        try:
+            cached_data = json.loads(cached.read_text(encoding="utf-8"))
+            if isinstance(cached_data, list) and len(cached_data) >= len(CANONICAL_IDS):
+                print(f"Using cached {cached} ({len(cached_data)} papers) - skipping arXiv request")
+                return cached_data
+        except: pass
+    try:
+        results = _fetch_by_ids(CANONICAL_IDS)
+    except urllib.error.HTTPError as e:
+        if e.code == 429 and cached.exists() and cached.stat().st_size > 10:
+            print(f"HTTP 429 - falling back to cached {cached}")
+            return json.loads(cached.read_text(encoding="utf-8"))
+        raise
     bib_entries=[]
     for r in results:
         k=_bibtex_key(r); r["bibkey"]=k
         bib_entries.append(_to_bibtex(r,k))
-    base = pathlib.Path(__file__).resolve().parents[3] / output_dir
-    base.mkdir(parents=True, exist_ok=True)
     (base / "retrieval.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
     (base / "references.bib").write_text("\n".join(bib_entries), encoding="utf-8")
     # Patch main.tex Related Work
