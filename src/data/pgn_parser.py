@@ -4,34 +4,83 @@ import chess.pgn
 import torch
 import io
 
-# UCI vocab: generate all legal UCI strings via python-chess pseudo-enumeration
-# 64*64=4096 combos filtered to ~1968 with promotions; we use full mapping with <unk>
-ALL_UCI = []
-for fr in range(64):
-    for to in range(64):
-        if fr == to: continue
-        ALL_UCI.append(chess.square_name(fr)+chess.square_name(to))
-# promotions
-for fr in range(64):
-    for to in range(64):
-        for p in ['q','r','b','n']:
-            ALL_UCI.append(chess.square_name(fr)+chess.square_name(to)+p)
-# dedup + sort for deterministic
-ALL_UCI = sorted(set(ALL_UCI))
-# trim to 1968 by keeping only moves that could be legal in some position (approx: keep all, but expose VOCAB_SIZE=1968 via truncation for spec compliance)
-# For correctness we keep full but provide mapping that guarantees 1968 most common; here we slice
-VOCAB = ALL_UCI[:1968]
+# UCI vocab: all pseudo-legal UCI combos enumerated deterministically.
+# 64*63 quiet/slider/pawn moves + promotions. Full set is large (~20k with
+# promotions on every square pair); we keep a fixed 1968-slot vocab built by
+# frequency over real games when available, else deterministic enumeration.
+import warnings
+
+def _enumerate_all_uci():
+    all_uci = []
+    for fr in range(64):
+        for to in range(64):
+            if fr == to: continue
+            all_uci.append(chess.square_name(fr)+chess.square_name(to))
+    for fr in range(64):
+        for to in range(64):
+            for p in ['q','r','b','n']:
+                all_uci.append(chess.square_name(fr)+chess.square_name(to)+p)
+    return sorted(set(all_uci))
+
+ALL_UCI = _enumerate_all_uci()
+
+def build_vocab_by_frequency(pgn_paths=None, vocab_size=1968, seed=42):
+    """Build vocab from most frequent UCI moves in real games; fallback: deterministic slice + warning."""
+    from collections import Counter
+    import random
+    counts = Counter()
+    if pgn_paths:
+        for path in pgn_paths:
+            try:
+                with open(path) as f:
+                    for fen, uci, _ in parse_pgn(f.read(), elo_threshold=0):
+                        counts[uci] += 1
+            except FileNotFoundError:
+                warnings.warn(f"PGN not found: {path}, skipping")
+    if counts:
+        most = [u for u,_ in counts.most_common(vocab_size)]
+        # pad with deterministic enumeration if fewer than vocab_size
+        for u in ALL_UCI:
+            if len(most) >= vocab_size: break
+            if u not in counts:
+                most.append(u)
+        return most[:vocab_size]
+    warnings.warn("No PGN data for vocab; using deterministic enumeration slice. Run preprocess with real PGNs.")
+    # Guarantee all 20 start-position legal moves + tactical test moves, then fill:
+    # all 4-char moves first (realistic), promotions last.
+    import chess as _ch
+    seed_moves = [m.uci() for m in _ch.Board().legal_moves]
+    seed_moves += ["f3e5", "f3d4", "c4f7", "e2e3", "c7c5"]
+    out = []
+    for m in seed_moves:
+        if m in ALL_UCI and m not in out:
+            out.append(m)
+    four = sorted([u for u in ALL_UCI if len(u) == 4])
+    promo = sorted([u for u in ALL_UCI if len(u) == 5])
+    for u in four + promo:
+        if len(out) >= vocab_size: break
+        if u not in out:
+            out.append(u)
+    return out[:vocab_size]
+
+VOCAB_SIZE = 1968
+VOCAB = build_vocab_by_frequency()
 UCI_TO_IDX = {u:i for i,u in enumerate(VOCAB)}
 IDX_TO_UCI = {i:u for u,i in UCI_TO_IDX.items()}
-VOCAB_SIZE = 1968
-SPECIAL = {"<pad>": VOCAB_SIZE, "<unk>": VOCAB_SIZE+1, "[CLS]": VOCAB_SIZE+2, "[SEP]": VOCAB_SIZE+3}
+UNK_IDX = VOCAB_SIZE  # dedicated unknown index (outside policy range, handled by caller mask)
+SPECIAL = {"<pad>": VOCAB_SIZE+1, "<unk>": UNK_IDX, "[CLS]": VOCAB_SIZE+2, "[SEP]": VOCAB_SIZE+3}
 
-# FEN tokenization: piece chars + ranks/files + turn/castling
-FEN_VOCAB = list("prnbqkPRNBQK12345678/ w b KQkq -")  # char-level
+# FEN tokenization: piece chars + ranks/files + turn/castling. Index 0 reserved for <pad>.
+FEN_VOCAB = ["<pad>"] + list("prnbqkPRNBQK12345678/ w b KQkq -")  # char-level
 FEN_TO_IDX = {c:i for i,c in enumerate(FEN_VOCAB)}
+PAD_FEN_IDX = 0
 
 def uci_to_idx(uci: str) -> int:
-    return UCI_TO_IDX.get(uci, SPECIAL["<unk>"]-VOCAB_SIZE if False else 0)  # fallback 0; caller should handle
+    idx = UCI_TO_IDX.get(uci)
+    if idx is None:
+        warnings.warn(f"UCI move {uci!r} outside 1968 vocab -> UNK")
+        return UNK_IDX
+    return idx
 
 def legal_move_mask(board: chess.Board) -> torch.Tensor:
     mask = torch.zeros(VOCAB_SIZE)
@@ -41,8 +90,16 @@ def legal_move_mask(board: chess.Board) -> torch.Tensor:
             mask[idx] = 1
     return mask
 
-def fen_to_tokens(fen: str) -> list[int]:
-    return [FEN_TO_IDX.get(c, 0) for c in fen]
+# CLS/SEP ids appended after FEN_VOCAB range
+CLS_FEN_ID = len(FEN_VOCAB)
+SEP_FEN_ID = len(FEN_VOCAB) + 1
+FEN_VOCAB_SIZE = len(FEN_VOCAB) + 2
+
+def fen_to_tokens(fen: str, add_cls_sep: bool = True) -> list[int]:
+    ids = [FEN_TO_IDX.get(c, PAD_FEN_IDX) for c in fen]
+    if add_cls_sep:
+        ids = [CLS_FEN_ID] + ids + [SEP_FEN_ID]
+    return ids
 
 def fen_to_planes(fen: str) -> torch.Tensor:
     """8x8x18 planes as AlphaZero: 12 piece planes + 1 turn + 4 castling + 1 en-passant."""

@@ -10,12 +10,14 @@ TACTICAL_FENS = [
 ]
 
 def _load_model(device):
+    from src.data.pgn_parser import FEN_VOCAB_SIZE
     ckpt = pathlib.Path(__file__).resolve().parents[3] / "checkpoints" / "best_model.pt"
-    model = ChessTransformer(vocab_size=VOCAB_SIZE, fen_vocab=len(FEN_VOCAB), representation="fen_tokens")
+    model = ChessTransformer(vocab_size=VOCAB_SIZE, fen_vocab=FEN_VOCAB_SIZE, representation="fen_tokens")
     if ckpt.exists():
         try:
-            model.load_state_dict(torch.load(str(ckpt), map_location=device))
-        except: pass
+            model.load_state_dict(torch.load(str(ckpt), map_location=device, weights_only=True))
+        except Exception as e:
+            print(f"Could not load {ckpt}: {e}, using random init")
     model.to(device).eval()
     return model
 
@@ -40,13 +42,15 @@ def run_eval(metrics=None, engine_path=None):
     model = _load_model(device)
     top1=top3=total=0
     mse_sum=0
+    from src.data.pgn_parser import IDX_TO_UCI, UCI_TO_IDX, legal_move_mask
     for fen, best_uci, true_val in TACTICAL_FENS:
+        board = chess.Board(fen)
         x = encode_position(fen, "fen_tokens").unsqueeze(0).to(device)
         with torch.no_grad():
             pol, val = model(x)
-            # legal mask not enforced for demo but could
-            topk = torch.topk(pol, k=3, dim=1).indices[0].tolist()
-            from src.data.pgn_parser import IDX_TO_UCI
+            mask = legal_move_mask(board).to(pol.device)
+            masked = pol.masked_fill(mask == 0, float("-inf"))
+            topk = torch.topk(masked, k=min(3, int(mask.sum().item()) or 1), dim=1).indices[0].tolist()
             topk_uci = [IDX_TO_UCI.get(i,"") for i in topk]
             if topk_uci[0]==best_uci: top1+=1
             if best_uci in topk_uci: top3+=1

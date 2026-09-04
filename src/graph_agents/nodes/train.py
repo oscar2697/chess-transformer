@@ -16,30 +16,60 @@ class ChessDataset(Dataset):
         return x, y_policy, y_value
 
 def collate_fen(batch):
-    # pad fen_tokens
+    from src.data.pgn_parser import PAD_FEN_IDX
     xs, ys, vs = zip(*batch)
     max_len = max(len(x) for x in xs)
-    padded = torch.zeros(len(xs), max_len, dtype=torch.long)
+    padded = torch.full((len(xs), max_len), PAD_FEN_IDX, dtype=torch.long)
     for i,x in enumerate(xs):
         padded[i,:len(x)] = x
     return padded, torch.tensor(ys), torch.tensor(vs, dtype=torch.float32)
 
-def run_train(data_path=None, epochs=2, batch_size=16, lr=3e-4, representation="fen_tokens"):
-    # if no data, synthesize from starting position moves
-    if data_path and pathlib.Path(data_path).exists():
-        # TODO parse real PGN
-        pass
-    # synthetic demo: sample random legal moves sequentially
-    import chess, random
-    board = chess.Board()
+def run_train(data_path=None, epochs=2, batch_size=16, lr=3e-4, representation="fen_tokens", seed=42):
+    import random
+    random.seed(seed)
     fens, ucis, vals = [], [], []
-    while len(fens) < 200:
-        m = random.choice(list(board.legal_moves))
-        fens.append(board.fen())
-        ucis.append(m.uci())
-        vals.append(0.0)
-        board.push(m)
-        if board.is_game_over(): board.reset()
+    loaded = False
+    if data_path and pathlib.Path(data_path).exists():
+        # data_path may be a PGN file or a processed .jsonl dir/file
+        p = pathlib.Path(data_path)
+        if p.suffix == ".jsonl" or (p.is_dir()):
+            files = [p] if p.is_file() else sorted(p.glob("train.jsonl"))
+            for jf in files:
+                for line in jf.read_text().splitlines():
+                    try:
+                        r = json.loads(line)
+                        fens.append(r["fen"]); ucis.append(r["uci"]); vals.append(float(r.get("value", 0.0)))
+                    except (json.JSONDecodeError, KeyError) as e:
+                        print(f"Skipping bad line in {jf}: {e}")
+            loaded = len(fens) > 0
+        else:
+            from src.data.pgn_parser import parse_pgn
+            for fen, uci, v in parse_pgn(p.read_text(encoding="utf-8", errors="ignore")):
+                fens.append(fen); ucis.append(uci); vals.append(float(v))
+                if len(fens) >= 5000: break
+            loaded = len(fens) > 0
+    if not loaded:
+        # check default processed output from preprocess node
+        default = pathlib.Path(__file__).resolve().parents[3] / "data" / "processed" / "train.jsonl"
+        if default.exists():
+            for line in default.read_text().splitlines():
+                try:
+                    r = json.loads(line)
+                    fens.append(r["fen"]); ucis.append(r["uci"]); vals.append(float(r.get("value", 0.0)))
+                except (json.JSONDecodeError, KeyError) as e:
+                    print(f"Skipping bad line: {e}")
+            loaded = len(fens) > 0
+    if not loaded:
+        import chess
+        board = chess.Board()
+        rng = random.Random(seed)
+        while len(fens) < 200:
+            m = rng.choice(list(board.legal_moves))
+            fens.append(board.fen())
+            ucis.append(m.uci())
+            vals.append(0.0)
+            board.push(m)
+            if board.is_game_over(): board.reset()
 
     ds = ChessDataset(fens, ucis, vals, representation)
     collate = collate_fen if representation=="fen_tokens" else None
@@ -52,7 +82,8 @@ def run_train(data_path=None, epochs=2, batch_size=16, lr=3e-4, representation="
     loader = DataLoader(ds, batch_size=batch_size, shuffle=True, collate_fn=collate)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = ChessTransformer(vocab_size=VOCAB_SIZE, fen_vocab=len(FEN_VOCAB), representation=representation).to(device)
+    from src.data.pgn_parser import FEN_VOCAB_SIZE
+    model = ChessTransformer(vocab_size=VOCAB_SIZE, fen_vocab=FEN_VOCAB_SIZE, representation=representation).to(device)
     opt = torch.optim.Adam(model.parameters(), lr=lr)
     ce = nn.CrossEntropyLoss()
     mse = nn.MSELoss()

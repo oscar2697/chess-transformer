@@ -29,7 +29,11 @@ def run_paper(metrics=None):
         if "\\section{Experiments}" in tex:
             tex = re.sub(r"\\section\{Experiments\}.*?(?=\\section\{Attention)", lambda m: results_section + "\n\\section{Attention Analysis}", tex, flags=re.DOTALL)
             tex_path.write_text(tex, encoding="utf-8")
-        elif "\\section{Results" not in tex:
+        elif "\\section{Results" in tex:
+            # idempotent update: replace existing Results section
+            tex = re.sub(r"\\section\{Results.*?(?=\\section\{Attention)", lambda m: results_section + "\n", tex, flags=re.DOTALL)
+            tex_path.write_text(tex, encoding="utf-8")
+        else:
             tex = tex.replace("\\bibliographystyle", results_section + "\n\\bibliographystyle")
             tex_path.write_text(tex, encoding="utf-8")
     print(f"Paper patched -> {tex_path}")

@@ -51,14 +51,20 @@ def run_retrieval(output_dir="paper"):
     base = pathlib.Path(__file__).resolve().parents[3] / output_dir
     base.mkdir(parents=True, exist_ok=True)
     cached = base / "retrieval.json"
-    # Use cache if non-empty to avoid 429
+    # Use cache if valid schema (requires authors+id) to avoid 429; rejects Colab fallback stubs
+    def _valid_cache(data):
+        if not isinstance(data, list) or len(data) < len(CANONICAL_IDS):
+            return False
+        return all(isinstance(r, dict) and r.get("authors") and r.get("id") for r in data)
     if cached.exists() and cached.stat().st_size > 10:
         try:
             cached_data = json.loads(cached.read_text(encoding="utf-8"))
-            if isinstance(cached_data, list) and len(cached_data) >= len(CANONICAL_IDS):
+            if _valid_cache(cached_data):
                 print(f"Using cached {cached} ({len(cached_data)} papers) - skipping arXiv request")
                 return cached_data
-        except: pass
+            print(f"Cache {cached} invalid schema, refetching")
+        except json.JSONDecodeError as e:
+            print(f"Cache decode error: {e}, refetching")
     try:
         results = _fetch_by_ids(CANONICAL_IDS)
     except urllib.error.HTTPError as e:
