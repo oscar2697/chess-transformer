@@ -29,17 +29,17 @@ def run_train(data_path=None, epochs=2, batch_size=16, lr=3e-4, representation="
     if data_path and pathlib.Path(data_path).exists():
         # TODO parse real PGN
         pass
-    # synthetic demo: iterate legal moves from start
-    import chess
+    # synthetic demo: sample random legal moves sequentially
+    import chess, random
     board = chess.Board()
     fens, ucis, vals = [], [], []
-    for m in list(board.legal_moves)[:20]*10:
+    while len(fens) < 200:
+        m = random.choice(list(board.legal_moves))
         fens.append(board.fen())
         ucis.append(m.uci())
         vals.append(0.0)
         board.push(m)
         if board.is_game_over(): board.reset()
-        if len(fens) >= 200: break
 
     ds = ChessDataset(fens, ucis, vals, representation)
     collate = collate_fen if representation=="fen_tokens" else None
