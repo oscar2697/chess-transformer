@@ -42,7 +42,7 @@ def get_llm():
       openai   - OPENAI_API_KEY [+ LLM_MODEL, default gpt-4o-mini]
       anthropic- ANTHROPIC_API_KEY [+ LLM_MODEL]
       nvidia   - NVIDIA_API_KEY, OpenAI-compatible https://integrate.api.nvidia.com/v1
-                 [+ LLM_MODEL, e.g. meta/llama-3.3-70b-instruct]
+                 [+ LLM_MODEL, e.g. moonshotai/kimi-k3]
       zen      - OPENCODE_ZEN_API_KEY, OpenCode Zen https://opencode.ai/zen/v1
                  [+ LLM_MODEL, e.g. the same model driving this session]
       custom   - LLM_BASE_URL + LLM_API_KEY + LLM_MODEL (any OpenAI-compatible endpoint)
@@ -63,7 +63,7 @@ def get_llm():
         if provider == "nvidia" and os.environ.get("NVIDIA_API_KEY"):
             from langchain_openai import ChatOpenAI
             return provider, ChatOpenAI(
-                model=model or "meta/llama-3.3-70b-instruct", temperature=0,
+                model=model or "moonshotai/kimi-k3", temperature=0,
                 openai_api_key=os.environ["NVIDIA_API_KEY"],
                 openai_api_base="https://integrate.api.nvidia.com/v1")
         if provider == "zen" and os.environ.get("OPENCODE_ZEN_API_KEY"):
