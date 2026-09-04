@@ -40,7 +40,13 @@ def paper_node(state: AgentState) -> AgentState:
 
 def build_graph():
     if not HAS_LANGGRAPH:
-        raise ImportError("langgraph not installed. pip install langgraph")
+        # Fallback sequential runner without langgraph
+        class SeqGraph:
+            def invoke(self, state):
+                for fn in [retrieval_node, preprocess_node, train_node, eval_node, paper_node]:
+                    state = fn(state)
+                return state
+        return SeqGraph()
     g = StateGraph(AgentState)
     g.add_node("retrieval", retrieval_node)
     g.add_node("preprocess", preprocess_node)
@@ -54,3 +60,8 @@ def build_graph():
     g.add_edge("eval", "paper")
     g.add_edge("paper", END)
     return g.compile()
+
+if __name__ == "__main__":
+    g = build_graph()
+    result = g.invoke({"query": "chess transformer", "papers": [], "data_stats": {}, "metrics": {}, "paper_draft": ""})
+    print("Pipeline done:", list(result.keys()))
