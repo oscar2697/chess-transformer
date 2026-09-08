@@ -1,6 +1,10 @@
 {
-  "n_train": 190000,
-  "n_val": 10000,
-  "dedup": 200000,
-  "source": "/kaggle/working/chess-transformer/data/raw/lichess_elite_2024-01.pgn"
+  "n_train": 570000,
+  "n_val": 30000,
+  "dedup": 600000,
+  "source": [
+    "/content/chess-transformer/data/raw/lichess_elite_2024-01.pgn",
+    "/content/chess-transformer/data/raw/lichess_elite_2024-02.pgn",
+    "/content/chess-transformer/data/raw/lichess_elite_2024-03.pgn"
+  ]
 }
