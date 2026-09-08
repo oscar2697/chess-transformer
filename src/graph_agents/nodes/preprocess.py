@@ -3,19 +3,31 @@ import pathlib, json, hashlib
 from src.data import pgn_parser as pp
 
 def run_preprocess(pgn_path="data/raw/lichess.pgn", elo_threshold=2000, val_frac=0.05, max_positions=500000):
+    """pgn_path: single path, list of paths, or directory (all .pgn inside)."""
     base = pathlib.Path(__file__).resolve().parents[3]
-    raw = base / pgn_path if not pathlib.Path(pgn_path).is_absolute() else pathlib.Path(pgn_path)
+    def _resolve(p):
+        p = pathlib.Path(p)
+        return p if p.is_absolute() else base / p
+    if isinstance(pgn_path, (list, tuple)):
+        raws = [_resolve(p) for p in pgn_path]
+    else:
+        r = _resolve(pgn_path)
+        raws = sorted(r.glob("*.pgn")) if r.is_dir() else [r]
+    raws = [r for r in raws if r.exists()]
     out_dir = base / "data" / "processed"
     out_dir.mkdir(parents=True, exist_ok=True)
     positions = []  # (fen, uci, value)
     seen = set()
-    if raw.exists():
-        text = raw.read_text(encoding="utf-8", errors="ignore")
-        for fen, uci, val in pp.parse_pgn(text, elo_threshold=elo_threshold):
-            h = hashlib.md5(f"{fen}{uci}".encode()).hexdigest()
-            if h in seen: continue
-            seen.add(h)
-            positions.append((fen, uci, val))
+    if raws:
+        for raw in raws:
+            print(f"Parsing {raw} ...")
+            text = raw.read_text(encoding="utf-8", errors="ignore")
+            for fen, uci, val in pp.parse_pgn(text, elo_threshold=elo_threshold):
+                h = hashlib.md5(f"{fen}{uci}".encode()).hexdigest()
+                if h in seen: continue
+                seen.add(h)
+                positions.append((fen, uci, val))
+                if len(positions) >= max_positions: break
             if len(positions) >= max_positions: break
     else:
         # synthetic fallback: random legal moves (keeps pipeline runnable)
@@ -46,7 +58,8 @@ def run_preprocess(pgn_path="data/raw/lichess.pgn", elo_threshold=2000, val_frac
     pp.VOCAB[:] = vocab[:pp.VOCAB_SIZE]
     pp.UCI_TO_IDX.clear(); pp.UCI_TO_IDX.update({u: i for i, u in enumerate(pp.VOCAB)})
     pp.IDX_TO_UCI.clear(); pp.IDX_TO_UCI.update({i: u for u, i in pp.UCI_TO_IDX.items()})
-    stats = {"n_train": len(train), "n_val": len(val), "dedup": len(seen), "source": str(raw) if raw.exists() else "synthetic"}
+    stats = {"n_train": len(train), "n_val": len(val), "dedup": len(seen),
+             "source": [str(r) for r in raws] if raws else "synthetic"}
     (out_dir / "stats.json").write_text(json.dumps(stats, indent=2))
     print(f"Preprocess -> {stats}")
     return stats

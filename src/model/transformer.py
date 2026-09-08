@@ -29,8 +29,9 @@ class ChessTransformer(nn.Module):
             pass
         self._attn_hook = _hook
 
-    def forward(self, x, mask=None):
+    def forward(self, x, mask=None, return_attn=True):
         # x: [B, L] tokens (with [CLS] at pos 0, padded with pad_idx) or [B,18,8,8] planes
+        # return_attn=False skips the extra attention query (saves ~15-20% in training)
         if self.representation == "fen_tokens":
             B, L = x.shape
             h = self.token_emb(x) + self.pos_emb(torch.arange(L, device=x.device))
@@ -41,11 +42,12 @@ class ChessTransformer(nn.Module):
             key_padding_mask = None
         out = self.encoder(h, src_key_padding_mask=key_padding_mask, mask=mask)
         # Single extra need_weights query on LAST layer only for interpretability
-        with torch.no_grad():
-            last = self.encoder.layers[-1].self_attn
-            _, w = last(out, out, out, need_weights=True, average_attn_weights=False,
-                        key_padding_mask=key_padding_mask)
-            self.last_attn = w
+        if return_attn:
+            with torch.no_grad():
+                last = self.encoder.layers[-1].self_attn
+                _, w = last(out, out, out, need_weights=True, average_attn_weights=False,
+                            key_padding_mask=key_padding_mask)
+                self.last_attn = w
         cls = out[:, 0, :]  # position 0 is [CLS] (prepended in fen_to_tokens)
         policy = self.policy_head(cls)  # [B, 1968]
         value = self.value_head(cls).squeeze(-1)  # [B]
