@@ -84,11 +84,18 @@ def uci_to_idx(uci: str) -> int:
 
 def legal_move_mask(board: chess.Board) -> torch.Tensor:
     mask = torch.zeros(VOCAB_SIZE)
+    for idx in legal_move_indices(board):
+        mask[idx] = 1
+    return mask
+
+def legal_move_indices(board: chess.Board) -> list[int]:
+    """Vocab indices of legal moves (moves outside vocab are dropped)."""
+    out = []
     for m in board.legal_moves:
         idx = UCI_TO_IDX.get(m.uci())
         if idx is not None:
-            mask[idx] = 1
-    return mask
+            out.append(idx)
+    return out
 
 # CLS/SEP ids appended after FEN_VOCAB range
 CLS_FEN_ID = len(FEN_VOCAB)
