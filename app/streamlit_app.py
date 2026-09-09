@@ -88,9 +88,24 @@ if "board" not in st.session_state:
     st.session_state.board = chess.Board()
 if "last_move" not in st.session_state:
     st.session_state.last_move = None
+if "user_color" not in st.session_state:
+    st.session_state.user_color = chess.WHITE
 board = st.session_state.board
 
-st.caption(f"Turn: {'White (you)' if board.turn else 'Black (you)'} | {board.fen()}")
+side = st.radio("Play as", ["White", "Black"],
+                index=0 if st.session_state.user_color == chess.WHITE else 1,
+                horizontal=True)
+new_color = chess.WHITE if side == "White" else chess.BLACK
+if new_color != st.session_state.user_color:
+    st.session_state.user_color = new_color
+    board.reset()
+    st.session_state.last_move = None
+    st.session_state.sel = None
+    st.rerun()
+
+you = "White (you)" if st.session_state.user_color == chess.WHITE else "Black (you)"
+me = "Black (model)" if st.session_state.user_color == chess.WHITE else "White (model)"
+st.caption(f"You: **{you}** | Model: **{me}** | Turn: {'yours' if board.turn == st.session_state.user_color else 'model thinking…'} | {board.fen()}")
 
 def draw_click_board(board: chess.Board, selected=None, last_move=None):
     """Clickable Plotly board: real chessboard look, pieces as annotations (not selectable)."""
@@ -158,24 +173,47 @@ try:
 except (AttributeError, KeyError, TypeError):
     idx = None
 
+def _model_reply():
+    """Model moves when it is its turn. Returns info string or None."""
+    if board.is_game_over() or board.turn == st.session_state.user_color:
+        return None
+    reply, v = predict_legal_move(model, board)
+    if reply is None:
+        return "Model found no legal move."
+    board.push(reply)
+    st.session_state.last_move = reply
+    return f"Model plays **{reply.uci()}** (value {v:.2f})"
+
+# Model starts if user plays Black
+if not board.move_stack and board.turn != st.session_state.user_color and not board.is_game_over():
+    msg = _model_reply()
+    if msg:
+        st.info(msg)
+    st.rerun()
+
 if idx is not None and not board.is_game_over():
     sq = chess.square(idx % 8, idx // 8)
     sel = st.session_state.sel
     piece = board.piece_at(sq)
-    if sel is not None and any(m.from_square == sel and m.to_square == sq for m in board.legal_moves):
+    if board.turn != st.session_state.user_color:
+        # Not your turn: let the model move instead of switching sides
+        msg = _model_reply()
+        if msg:
+            st.info(msg)
+        st.session_state.sel = None
+        st.rerun()
+    elif sel is not None and any(m.from_square == sel and m.to_square == sq for m in board.legal_moves):
         cands = [m for m in board.legal_moves if m.from_square == sel and m.to_square == sq]
         user_move = next((m for m in cands if m.promotion == chess.QUEEN), cands[0])
         board.push(user_move)
         st.session_state.last_move = user_move
         st.session_state.sel = None
         if not board.is_game_over():
-            reply, v = predict_legal_move(model, board)
-            if reply is not None:
-                board.push(reply)
-                st.session_state.last_move = reply
-                st.info(f"Model replies **{reply.uci()}** (value {v:.2f})")
+            msg = _model_reply()
+            if msg:
+                st.info(msg)
         st.rerun()
-    elif piece and piece.color == board.turn:
+    elif piece and piece.color == st.session_state.user_color:
         st.session_state.sel = None if sel == sq else sq
         st.rerun()
     else:
@@ -189,7 +227,19 @@ if st.button("Reset board"):
     st.rerun()
 
 if board.is_game_over():
-    st.success(f"Game over: {board.result()}")
+    res = board.result()
+    if res == "1-0":
+        winner = chess.WHITE
+    elif res == "0-1":
+        winner = chess.BLACK
+    else:
+        winner = None
+    if winner is None:
+        st.success(f"Game over: draw ({res}) — nobody wins.")
+    elif winner == st.session_state.user_color:
+        st.success(f"Game over: **you win!** 🎉 ({res})")
+    else:
+        st.error(f"Game over: **model wins** ({res}). Try again!")
 
 # Attention visualization
 st.subheader("Attention heatmap (CLS head-average)")
