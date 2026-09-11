@@ -166,12 +166,14 @@ def run_train(data_path=None, epochs=2, batch_size=16, lr=3e-4, representation="
                              shuffle=False, collate_fn=collate, num_workers=num_workers, pin_memory=pin)
 
     def _batch_loss(pol, val, yp, yv, mask=None):
+        """Returns (total, ce_policy, mse_value) so training curves are diagnosable."""
         if mask_illegal and mask is not None:
             lpol = _masked_ce_loss(ce, pol, yp, mask)
         else:
             valid = yp >= 0
             lpol = ce(pol[valid], yp[valid]) if valid.sum().item() else pol.sum() * 0.0
-        return lpol + mse(val, yv)
+        lval = mse(val, yv)
+        return lpol + lval, lpol, lval
 
     def _unpack(batch):
         if with_legal:
@@ -183,20 +185,21 @@ def run_train(data_path=None, epochs=2, batch_size=16, lr=3e-4, representation="
     for ep in range(start_ep, epochs):
         t0 = time.time()
         model.train()
-        total = 0
+        total, tot_ce, tot_mse = 0.0, 0.0, 0.0
         for batch in loader:
             x, yp, yv, mask = _unpack(batch)
             x, yp, yv = x.to(device, non_blocking=pin), yp.to(device), yv.to(device)
             opt.zero_grad(set_to_none=True)
             with torch.amp.autocast("cuda", enabled=use_amp):
                 pol, val = model(x, return_attn=False)
-                loss = _batch_loss(pol, val, yp, yv, mask)
+                loss, lce, lmse = _batch_loss(pol, val, yp, yv, mask)
             scaler.scale(loss).backward()
             scaler.unscale_(opt)
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             scaler.step(opt); scaler.update()
-            total += loss.item()
-        avg = total / len(loader)
+            total += loss.item(); tot_ce += lce.item(); tot_mse += lmse.item()
+        nb = len(loader)
+        avg, avg_ce, avg_mse = total / nb, tot_ce / nb, tot_mse / nb
         sched.step()
 
         # val loop (+ top-1 on a sample, RQ1)
@@ -210,7 +213,8 @@ def run_train(data_path=None, epochs=2, batch_size=16, lr=3e-4, representation="
                     x, yp, yv = x.to(device, non_blocking=pin), yp.to(device), yv.to(device)
                     with torch.amp.autocast("cuda", enabled=use_amp):
                         pol, val = model(x, return_attn=False)
-                        vtot += _batch_loss(pol, val, yp, yv, mask).item()
+                        vloss, _, _ = _batch_loss(pol, val, yp, yv, mask)
+                        vtot += vloss.item()
                     if seen < val_topk_sample:
                         pm = pol.masked_fill(mask == 0, float("-inf")) if mask is not None else pol
                         pred = pm.argmax(dim=1)
@@ -220,7 +224,8 @@ def run_train(data_path=None, epochs=2, batch_size=16, lr=3e-4, representation="
             vavg = vtot / len(vloader)
             vtop1 = correct / max(seen, 1)
 
-        rec = {"epoch": ep, "loss": avg, "val_loss": vavg, "val_top1": vtop1,
+        rec = {"epoch": ep, "loss": avg, "loss_ce": avg_ce, "loss_mse": avg_mse,
+               "val_loss": vavg, "val_top1": vtop1,
                "lr": sched.get_last_lr()[0], "minutes": round((time.time() - t0) / 60, 1)}
         history.append(rec)
         with open(log_path, "a") as f:
@@ -233,7 +238,7 @@ def run_train(data_path=None, epochs=2, batch_size=16, lr=3e-4, representation="
         torch.save({"epoch": ep, "model": model.state_dict(), "optimizer": opt.state_dict(),
                     "scheduler": sched.state_dict(), "scaler": scaler.state_dict(),
                     "history": history, "best": best}, last_ckpt)
-        msg = f"Epoch {ep} loss {avg:.4f}"
+        msg = f"Epoch {ep} loss {avg:.4f} (ce {avg_ce:.4f} mse {avg_mse:.4f})"
         if vavg is not None:
             msg += f" val {vavg:.4f}"
         if vtop1 is not None:
@@ -242,3 +247,62 @@ def run_train(data_path=None, epochs=2, batch_size=16, lr=3e-4, representation="
 
     results_path.write_text(json.dumps(history, indent=2))
     return {"best_loss": best, "history": history}
+
+
+def overfit_one_batch(n_steps=100, n_samples=16, lr=1e-3, seed=42, verbose=True,
+                      d_model=128, n_layers=2, n_heads=4, d_ff=512):
+    """Sanity check: can the model memorize a single small batch?
+
+    A healthy architecture must drive train loss well below the random-guess
+    floor ln(VOCAB_SIZE) on a fixed tiny batch. If it cannot, the bug is in the
+    model/data pipeline, not in scale. Uses a small config so it runs on CPU.
+    """
+    import random as _random
+    import chess
+    from src.data.pgn_parser import encode_position, VOCAB_SIZE, FEN_VOCAB_SIZE, UCI_TO_IDX
+    _random.seed(seed)
+    torch.manual_seed(seed)
+
+    fens, ucis, vals = [], [], []
+    board = chess.Board()
+    while len(fens) < n_samples:
+        m = _random.choice(list(board.legal_moves))
+        fens.append(board.fen()); ucis.append(m.uci()); vals.append(0.0)
+        board.push(m)
+        if board.is_game_over():
+            board.reset()
+
+    xs = [encode_position(f, "fen_tokens") for f in fens]
+    L = max(len(t) for t in xs)
+    from src.data.pgn_parser import PAD_FEN_IDX
+    x = torch.full((n_samples, L), PAD_FEN_IDX, dtype=torch.long)
+    for i, t in enumerate(xs):
+        x[i, :len(t)] = t
+    yp = torch.tensor([UCI_TO_IDX.get(u, -1) for u in ucis])
+    yv = torch.tensor(vals, dtype=torch.float32)
+
+    model = ChessTransformer(vocab_size=VOCAB_SIZE, fen_vocab=FEN_VOCAB_SIZE,
+                             representation="fen_tokens", d_model=d_model,
+                             n_layers=n_layers, n_heads=n_heads, d_ff=d_ff)
+    opt = torch.optim.Adam(model.parameters(), lr=lr)
+    ce, mse = nn.CrossEntropyLoss(), nn.MSELoss()
+
+    first = last = None
+    valid = yp >= 0  # skip targets outside the current move vocab
+    for step in range(n_steps):
+        opt.zero_grad(set_to_none=True)
+        pol, val = model(x, return_attn=False)
+        loss = ce(pol[valid], yp[valid]) + mse(val[valid], yv[valid])
+        loss.backward()
+        opt.step()
+        if step == 0:
+            first = loss.item()
+        last = loss.item()
+        if verbose and step % 20 == 0:
+            print(f"step {step:3d} loss {loss.item():.4f}")
+
+    floor = float(torch.log(torch.tensor(float(VOCAB_SIZE))))  # random-guess loss
+    ok = last < 0.5 * floor
+    print(f"overfit_one_batch: first={first:.3f} last={last:.3f} "
+          f"random-floor={floor:.3f} -> {'PASS' if ok else 'FAIL'}")
+    return {"first": first, "last": last, "random_floor": floor, "overfits": ok}

@@ -11,4 +11,5 @@ pygame
 matplotlib
 scikit-learn
 pyyaml
+pydantic
 wandb
