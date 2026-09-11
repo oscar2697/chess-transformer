@@ -1,0 +1,214 @@
+{
+  "started": "2026-09-11T19:03:30.720107+00:00",
+  "current": 5,
+  "pending": null,
+  "steps": {
+    "researcher": {
+      "agent": "researcher",
+      "mode": "provided",
+      "status": "executed",
+      "decision": {
+        "rationale": "No LLM backend configured; using safe defaults.",
+        "arxiv_ids": [
+          "1706.03762",
+          "1712.01815",
+          "2106.01345",
+          "2402.04494"
+        ]
+      },
+      "executed_kwargs": {},
+      "result": [
+        {
+          "id": "1706.03762",
+          "full_id": "1706.03762v7",
+          "title": "Attention Is All You Need",
+          "authors": [
+            "Ashish Vaswani",
+            "Noam Shazeer",
+            "Niki Parmar",
+            "Jakob Uszkoreit",
+            "Llion Jones",
+            "Aidan N. Gomez",
+            "Lukasz Kaiser",
+            "Illia Polosukhin"
+          ],
+          "summary": "The dominant sequence transduction models are based on complex recurrent or convolutional neural networks in an encoder-decoder configuration. The best performing models also connect the encoder and decoder through an attention mechanism. We propose a new simple network architecture, the Transformer, based solely on attention mechanisms, dispensing with recurrence and convolutions entirely. Experiments on two machine translation tasks show these models to be superior in quality while being more parallelizable and requiring significantly less time to train. Our model achieves 28.4 BLEU on the WMT 2014 English-to-German translation task, improving over the existing best results, including ensembles by over 2 BLEU. On the WMT 2014 English-to-French translation task, our model establishes a new single-model state-of-the-art BLEU score of 41.8 after training for 3.5 days on eight GPUs, a small fraction of the training costs of the best models from the literature. We show that the Transformer generalizes well to other tasks by applying it successfully to English constituency parsing both with large and limited training data.",
+          "published": "2017-06-12",
+          "bibkey": "Vaswani2017_1706_03762"
+        },
+        {
+          "id": "2106.01345",
+          "full_id": "2106.01345v2",
+          "title": "Decision Transformer: Reinforcement Learning via Sequence Modeling",
+          "authors": [
+            "Lili Chen",
+            "Kevin Lu",
+            "Aravind Rajeswaran",
+            "Kimin Lee",
+            "Aditya Grover",
+            "Michael Laskin",
+            "Pieter Abbeel",
+            "Aravind Srinivas",
+            "Igor Mordatch"
+          ],
+          "summary": "We introduce a framework that abstracts Reinforcement Learning (RL) as a sequence modeling problem. This allows us to draw upon the simplicity and scalability of the Transformer architecture, and associated advances in language modeling such as GPT-x and BERT. In particular, we present Decision Transformer, an architecture that casts the problem of RL as conditional sequence modeling. Unlike prior approaches to RL that fit value functions or compute policy gradients, Decision Transformer simply outputs the optimal actions by leveraging a causally masked Transformer. By conditioning an autoregressive model on the desired return (reward), past states, and actions, our Decision Transformer model can generate future actions that achieve the desired return. Despite its simplicity, Decision Transformer matches or exceeds the performance of state-of-the-art model-free offline RL baselines on Atari, OpenAI Gym, and Key-to-Door tasks.",
+          "published": "2021-06-02",
+          "bibkey": "Chen2021_2106_01345"
+        },
+        {
+          "id": "2402.04494",
+          "full_id": "2402.04494v2",
+          "title": "Amortized Planning with Large-Scale Transformers: A Case Study on Chess",
+          "authors": [
+            "Anian Ruoss",
+            "Gr\u00e9goire Del\u00e9tang",
+            "Sourabh Medapati",
+            "Jordi Grau-Moya",
+            "Li Kevin Wenliang",
+            "Elliot Catt",
+            "John Reid",
+            "Cannada A. Lewis",
+            "Joel Veness",
+            "Tim Genewein"
+          ],
+          "summary": "This paper uses chess, a landmark planning problem in AI, to assess transformers' performance on a planning task where memorization is futile $\\unicode{x2013}$ even at a large scale. To this end, we release ChessBench, a large-scale benchmark dataset of 10 million chess games with legal move and value annotations (15 billion data points) provided by Stockfish 16, the state-of-the-art chess engine. We train transformers with up to 270 million parameters on ChessBench via supervised learning and perform extensive ablations to assess the impact of dataset size, model size, architecture type, and different prediction targets (state-values, action-values, and behavioral cloning). Our largest models learn to predict action-values for novel boards quite accurately, implying highly non-trivial generalization. Despite performing no explicit search, our resulting chess policy solves challenging chess puzzles and achieves a surprisingly strong Lichess blitz Elo of 2895 against humans (grandmaster level). We also compare to Leela Chess Zero and AlphaZero (trained without supervision via self-play) with and without search. We show that, although a remarkably good approximation of Stockfish's search-based algorithm can be distilled into large-scale transformers via supervised learning, perfect distillation is still beyond reach, thus making ChessBench well-suited for future research.",
+          "published": "2024-02-07",
+          "bibkey": "Ruoss2024_2402_04494"
+        },
+        {
+          "id": "1712.01815",
+          "full_id": "1712.01815v1",
+          "title": "Mastering Chess and Shogi by Self-Play with a General Reinforcement Learning Algorithm",
+          "authors": [
+            "David Silver",
+            "Thomas Hubert",
+            "Julian Schrittwieser",
+            "Ioannis Antonoglou",
+            "Matthew Lai",
+            "Arthur Guez",
+            "Marc Lanctot",
+            "Laurent Sifre",
+            "Dharshan Kumaran",
+            "Thore Graepel",
+            "Timothy Lillicrap",
+            "Karen Simonyan",
+            "Demis Hassabis"
+          ],
+          "summary": "The game of chess is the most widely-studied domain in the history of artificial intelligence. The strongest programs are based on a combination of sophisticated search techniques, domain-specific adaptations, and handcrafted evaluation functions that have been refined by human experts over several decades. In contrast, the AlphaGo Zero program recently achieved superhuman performance in the game of Go, by tabula rasa reinforcement learning from games of self-play. In this paper, we generalise this approach into a single AlphaZero algorithm that can achieve, tabula rasa, superhuman performance in many challenging domains. Starting from random play, and given no domain knowledge except the game rules, AlphaZero achieved within 24 hours a superhuman level of play in the games of chess and shogi (Japanese chess) as well as Go, and convincingly defeated a world-champion program in each case.",
+          "published": "2017-12-05",
+          "bibkey": "Silver2017_1712_01815"
+        }
+      ]
+    },
+    "data_engineer": {
+      "agent": "data_engineer",
+      "mode": "provided+human_override",
+      "status": "executed",
+      "decision": {
+        "rationale": "No LLM backend configured; using safe defaults.",
+        "pgn_path": "data/raw/sample_smoke.pgn",
+        "elo_threshold": 2000,
+        "val_frac": 0.05,
+        "max_positions": 1000,
+        "out_dir": "data/processed_smoke"
+      },
+      "executed_kwargs": {
+        "pgn_path": "data/raw/sample_smoke.pgn",
+        "elo_threshold": 2000,
+        "val_frac": 0.05,
+        "max_positions": 1000,
+        "out_dir": "data/processed_smoke"
+      },
+      "result": {
+        "n_train": 42,
+        "n_val": 2,
+        "dedup": 44,
+        "source": [
+          "C:\\Users\\lindo\\Documents\\Workspace\\IA\\chess-transformer\\data\\raw\\sample_smoke.pgn"
+        ]
+      }
+    },
+    "trainer": {
+      "agent": "trainer",
+      "mode": "provided+human_override",
+      "status": "executed",
+      "decision": {
+        "rationale": "No LLM backend configured; using safe defaults.",
+        "data_path": "data/processed_smoke/train.jsonl",
+        "epochs": 1,
+        "batch_size": 16,
+        "lr": 0.0003,
+        "representation": "fen_tokens",
+        "seed": 42,
+        "resume": false,
+        "use_amp": true,
+        "mask_illegal": false,
+        "warmup_ratio": 0.0,
+        "num_workers": 0,
+        "run_id": "smoke"
+      },
+      "executed_kwargs": {
+        "data_path": "data/processed_smoke/train.jsonl",
+        "epochs": 1,
+        "batch_size": 16,
+        "lr": 0.0003,
+        "representation": "fen_tokens",
+        "seed": 42,
+        "resume": false,
+        "use_amp": true,
+        "mask_illegal": false,
+        "warmup_ratio": 0.0,
+        "num_workers": 0,
+        "run_id": "smoke"
+      },
+      "result": {
+        "best_loss": 8.254449971294402,
+        "history": [
+          {
+            "epoch": 0,
+            "loss": 8.486292521158854,
+            "loss_ce": 7.46328083674113,
+            "loss_mse": 1.0230115254720051,
+            "val_loss": 8.254449971294402,
+            "val_top1": 0.007492507492507493,
+            "lr": 0.0,
+            "minutes": 3.9
+          }
+        ]
+      }
+    },
+    "evaluator": {
+      "agent": "evaluator",
+      "mode": "provided+human_override",
+      "status": "executed",
+      "decision": {
+        "rationale": "No LLM backend configured; using safe defaults.",
+        "engine_path": null,
+        "out_path": "experiments/evaluation_smoke.json"
+      },
+      "executed_kwargs": {
+        "engine_path": null,
+        "out_path": "experiments/evaluation_smoke.json"
+      },
+      "result": {
+        "top1_accuracy": 0.0,
+        "top3_accuracy": 0.0,
+        "value_mse": 0.03371944428499895,
+        "n_positions": 3,
+        "engine_used": "mock",
+        "verdict": "NOT_FOR_PUBLICATION"
+      }
+    },
+    "writer": {
+      "agent": "writer",
+      "mode": "provided",
+      "status": "executed",
+      "decision": {
+        "rationale": "No LLM backend configured; using safe defaults.",
+        "focus": "loss_curve"
+      },
+      "executed_kwargs": {},
+      "result": "\\section{Results \\& Evaluation}\n\\begin{table}[h]\\centering\\caption{Training Loss (CE+MSE)}\\begin{tabular}{cc}\\hline Epoch & Loss \\\\ \\hline\n0 & 7.6983 \\\\\n1 & 7.6613 \\\\\n2 & 7.6523 \\\\\n3 & 7.6478 \\\\\n4 & 7.6471 \\\\\n5 & 7.6413 \\\\\n6 & 7.6407 \\\\\n7 & 7.6381 \\\\\n8 & 7.6327 \\\\\n9 & 7.6320 \\\\\n10 & 7.6293 \\\\\n11 & 7.6271 \\\\\n12 & 7.6255 \\\\\n13 & 7.6243 \\\\\n14 & 7.6230 \\\\\n\\hline\\end{tabular}\\end{table}\n\n\\begin{table}[h]\\centering\\caption{Stockfish Evaluation (Top-k & Value MSE)}\\begin{tabular}{lcc}\\hline Metric & Value \\\\ \\hline Top-1 Accuracy & 0.000 \\\\ Top-3 Accuracy & 0.000 \\\\ Value MSE & 0.0337 \\\\ \\hline\\end{tabular}\\end{table}\n\n"
+    }
+  }
+}

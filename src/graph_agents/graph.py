@@ -1,10 +1,19 @@
-"""LangGraph DAG for chess-transformer pipeline."""
+"""LangGraph DAG for chess-transformer pipeline.
+
+Single orchestrator: every node delegates to the agent layer (llm_agents.run_agent
+with auto=True), so the DAG and the interactive runner share the exact same
+decision/validation/logging path.
+"""
 from typing import TypedDict
 try:
     from langgraph.graph import StateGraph, END
     HAS_LANGGRAPH = True
 except ImportError:
     HAS_LANGGRAPH = False
+
+from .llm_agents import run_agent
+from .runner import TASKS
+
 
 class AgentState(TypedDict):
     query: str
@@ -13,55 +22,53 @@ class AgentState(TypedDict):
     metrics: dict
     paper_draft: str
 
-def retrieval_node(state: AgentState) -> AgentState:
-    from .nodes.retrieval import run_retrieval
-    state["papers"] = run_retrieval()
-    return state
 
-def preprocess_node(state: AgentState) -> AgentState:
-    from .nodes.preprocess import run_preprocess
-    state["data_stats"] = run_preprocess()
-    return state
+def _node(agent: str, field: str):
+    def fn(state: AgentState) -> AgentState:
+        r = run_agent(agent, TASKS[agent], auto=True)
+        res = r["result"]
+        if field == "metrics":
+            # train and eval both contribute to metrics
+            state.setdefault("metrics", {}).update({"train": res} if agent == "trainer"
+                                                   else dict(res))
+        else:
+            state[field] = res
+        return state
+    fn.__name__ = f"{agent}_node"
+    return fn
 
-def train_node(state: AgentState) -> AgentState:
-    from .nodes.train import run_train
-    state["metrics"] = run_train()
-    return state
 
-def eval_node(state: AgentState) -> AgentState:
-    from .nodes.evaluate import run_eval
-    state["metrics"].update(run_eval(state["metrics"]))
-    return state
+NODE_FNS = [
+    _node("researcher", "papers"),
+    _node("data_engineer", "data_stats"),
+    _node("trainer", "metrics"),
+    _node("evaluator", "metrics"),
+    _node("writer", "paper_draft"),
+]
 
-def paper_node(state: AgentState) -> AgentState:
-    from .nodes.paper import run_paper
-    state["paper_draft"] = run_paper(state["metrics"])
-    return state
 
 def build_graph():
     if not HAS_LANGGRAPH:
         # Fallback sequential runner without langgraph
         class SeqGraph:
             def invoke(self, state):
-                for fn in [retrieval_node, preprocess_node, train_node, eval_node, paper_node]:
+                for fn in NODE_FNS:
                     state = fn(state)
                 return state
         return SeqGraph()
     g = StateGraph(AgentState)
-    g.add_node("retrieval", retrieval_node)
-    g.add_node("preprocess", preprocess_node)
-    g.add_node("train", train_node)
-    g.add_node("eval", eval_node)
-    g.add_node("paper", paper_node)
+    names = ["retrieval", "preprocess", "train", "eval", "paper"]
+    for name, fn in zip(names, NODE_FNS):
+        g.add_node(name, fn)
     g.set_entry_point("retrieval")
-    g.add_edge("retrieval", "preprocess")
-    g.add_edge("preprocess", "train")
-    g.add_edge("train", "eval")
-    g.add_edge("eval", "paper")
+    for a, b in zip(names, names[1:]):
+        g.add_edge(a, b)
     g.add_edge("paper", END)
     return g.compile()
 
+
 if __name__ == "__main__":
     g = build_graph()
-    result = g.invoke({"query": "chess transformer", "papers": [], "data_stats": {}, "metrics": {}, "paper_draft": ""})
+    result = g.invoke({"query": "chess transformer", "papers": [], "data_stats": {},
+                       "metrics": {}, "paper_draft": ""})
     print("Pipeline done:", list(result.keys()))

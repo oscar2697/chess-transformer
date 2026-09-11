@@ -186,25 +186,3 @@ def run_agent(agent: str, task: str, decision: BaseDecision | None = None,
     return {"agent": agent, "mode": mode, "status": "executed",
             "decision": decision.model_dump(), "executed_kwargs": kwargs,
             "result": result}
-
-
-def run_all_agents(tasks: dict | None = None, decisions: dict | None = None):
-    """Run the full agent chain autonomously (auto=True for every step)."""
-    tasks = tasks or {}
-    decisions = decisions or {}
-    default_tasks = {
-        "researcher": "Retrieve the 4 canonical papers for the literature review.",
-        "data_engineer": "Preprocess high-ELO PGNs into train/val splits.",
-        "trainer": "Train the ChessTransformer (CE policy + MSE value).",
-        "evaluator": "Evaluate policy/value vs Stockfish.",
-        "writer": "Write Results & Evaluation LaTeX tables.",
-    }
-    out = {}
-    prev = None
-    for agent in ["researcher", "data_engineer", "trainer", "evaluator", "writer"]:
-        t = default_tasks[agent] if prev is None else \
-            f"{default_tasks[agent]} Previous result: {str(prev)[:500]}"
-        r = run_agent(agent, t, decision=decisions.get(agent), auto=True)
-        out[agent] = r
-        prev = r.get("result")
-    return out

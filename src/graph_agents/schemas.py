@@ -36,6 +36,8 @@ class PreprocessDecision(BaseDecision):
     elo_threshold: int = Field(default=2000, ge=1500, le=2900)
     val_frac: float = Field(default=0.05, ge=0.01, le=0.3)
     max_positions: int = Field(default=500000, ge=1000, le=20_000_000)
+    out_dir: str | None = Field(default=None, description="Output dir (default data/processed); "
+                                "use a sandbox dir for smoke tests.")
 
     def tool_kwargs(self) -> dict:
         return {
@@ -43,10 +45,12 @@ class PreprocessDecision(BaseDecision):
             "elo_threshold": self.elo_threshold,
             "val_frac": self.val_frac,
             "max_positions": self.max_positions,
+            "out_dir": self.out_dir,
         }
 
 
 class TrainDecision(BaseDecision):
+    data_path: str | None = Field(default=None, description="jsonl/pgn path; None -> data/processed/train.jsonl")
     epochs: int = Field(default=2, ge=1, le=200)
     batch_size: int = Field(default=128, ge=8, le=1024)
     lr: float = Field(default=3e-4, ge=1e-6, le=1e-2)
@@ -54,6 +58,12 @@ class TrainDecision(BaseDecision):
     seed: int = Field(default=42, ge=0)
     resume: bool = True
     use_amp: bool = True
+    mask_illegal: bool = Field(default=False, description="Mask illegal moves in policy loss.")
+    warmup_ratio: float = Field(default=0.0, ge=0.0, le=0.3)
+    num_workers: int = Field(default=2, ge=0, le=8,
+                             description="DataLoader workers; use 0 on Windows / python -c.")
+    run_id: str | None = Field(default=None, description="Checkpoint/log suffix; use a separate "
+                               "run_id for smoke tests so real checkpoints are untouched.")
 
     def tool_kwargs(self) -> dict:
         return self.model_dump(exclude={"rationale"})
@@ -62,9 +72,11 @@ class TrainDecision(BaseDecision):
 class EvalDecision(BaseDecision):
     engine_path: str | None = Field(
         default=None, description="Path to Stockfish binary; None -> mock fallback (flagged).")
+    out_path: str | None = Field(default=None, description="Output JSON path; use a sandbox "
+                                 "path for smoke tests (default experiments/evaluation_results.json).")
 
     def tool_kwargs(self) -> dict:
-        return {"engine_path": self.engine_path}
+        return {"engine_path": self.engine_path, "out_path": self.out_path}
 
 
 class WriterDecision(BaseDecision):

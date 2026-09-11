@@ -2,8 +2,10 @@
 import pathlib, json, hashlib
 from src.data import pgn_parser as pp
 
-def run_preprocess(pgn_path="data/raw/lichess.pgn", elo_threshold=2000, val_frac=0.05, max_positions=500000):
-    """pgn_path: single path, list of paths, or directory (all .pgn inside)."""
+def run_preprocess(pgn_path="data/raw/lichess.pgn", elo_threshold=2000, val_frac=0.05,
+                   max_positions=500000, out_dir=None):
+    """pgn_path: single path, list of paths, or directory (all .pgn inside).
+    out_dir: output directory (relative to repo root or absolute); default data/processed."""
     base = pathlib.Path(__file__).resolve().parents[3]
     def _resolve(p):
         p = pathlib.Path(p)
@@ -14,7 +16,7 @@ def run_preprocess(pgn_path="data/raw/lichess.pgn", elo_threshold=2000, val_frac
         r = _resolve(pgn_path)
         raws = sorted(r.glob("*.pgn")) if r.is_dir() else [r]
     raws = [r for r in raws if r.exists()]
-    out_dir = base / "data" / "processed"
+    out_dir = _resolve(out_dir) if out_dir else base / "data" / "processed"
     out_dir.mkdir(parents=True, exist_ok=True)
     positions = []  # (fen, uci, value)
     seen = set()

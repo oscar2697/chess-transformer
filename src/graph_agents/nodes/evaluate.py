@@ -37,9 +37,10 @@ def _engine_eval(fen, engine_path=None):
         if f==fen: return v
     return 0.0
 
-def run_eval(metrics=None, engine_path=None):
+def run_eval(metrics=None, engine_path=None, out_path=None):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = _load_model(device)
+    engine_used = "stockfish" if (engine_path and pathlib.Path(engine_path).exists()) else "mock"
     top1=top3=total=0
     mse_sum=0
     from src.data.pgn_parser import IDX_TO_UCI, UCI_TO_IDX, legal_move_mask
@@ -62,8 +63,14 @@ def run_eval(metrics=None, engine_path=None):
         "top3_accuracy": top3/max(total,1),
         "value_mse": mse_sum/max(total,1),
         "n_positions": total,
+        "engine_used": engine_used,
+        # Guardrail: tiny mock evals must never reach the paper unflagged.
+        "verdict": "OK" if (engine_used == "stockfish" and total >= 100) else "NOT_FOR_PUBLICATION",
     }
-    out = pathlib.Path(__file__).resolve().parents[3] / "experiments" / "evaluation_results.json"
+    base = pathlib.Path(__file__).resolve().parents[3]
+    out = pathlib.Path(out_path) if out_path else base / "experiments" / "evaluation_results.json"
+    if not out.is_absolute():
+        out = base / out
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(res, indent=2))
     print(f"Eval -> {out}: {res}")

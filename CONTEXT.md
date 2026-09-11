@@ -38,7 +38,7 @@ Investigation project inspired by Demis Hassabis (DeepMind) philosophy: learning
 src/data/       -> pgn_parser.py, tokenization.py, dataset.py
 src/model/      -> transformer.py, heads.py, model.py
 src/utils/      -> config.py, metrics.py
-src/graph_agents/ -> LangGraph DAG: retrieval -> preprocess -> train -> eval -> paper
+src/graph_agents/ -> LLM agents: schemas.py (validated decisions), llm_agents.py (decide->validate->execute), runner.py (interactive resumable pipeline), graph.py (LangGraph DAG over the same layer), nodes/ (deterministic tools: retrieval -> preprocess -> train -> eval -> paper)
 src/eval/       -> stockfish_eval.py, matchmaking.py
 app/            -> streamlit_app.py / pygame_app.py
 paper/          -> main.tex, IEEE template

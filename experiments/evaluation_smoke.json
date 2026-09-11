@@ -1,0 +1,8 @@
+{
+  "top1_accuracy": 0.0,
+  "top3_accuracy": 0.0,
+  "value_mse": 0.03371944428499895,
+  "n_positions": 3,
+  "engine_used": "mock",
+  "verdict": "NOT_FOR_PUBLICATION"
+}
