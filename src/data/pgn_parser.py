@@ -64,7 +64,22 @@ def build_vocab_by_frequency(pgn_paths=None, vocab_size=1968, seed=42):
     return out[:vocab_size]
 
 VOCAB_SIZE = 1968
-VOCAB = build_vocab_by_frequency()
+
+def _load_saved_vocab():
+    """Use the frequency vocab written by preprocess (data/processed/vocab.json)
+    if available; otherwise build the deterministic fallback."""
+    import pathlib, json as _json
+    p = pathlib.Path(__file__).resolve().parents[2] / "data" / "processed" / "vocab.json"
+    if p.exists():
+        try:
+            v = _json.loads(p.read_text(encoding="utf-8"))
+            if isinstance(v, list) and len(v) == VOCAB_SIZE:
+                return v
+        except Exception:
+            pass
+    return build_vocab_by_frequency()
+
+VOCAB = _load_saved_vocab()
 UCI_TO_IDX = {u:i for i,u in enumerate(VOCAB)}
 IDX_TO_UCI = {i:u for u,i in UCI_TO_IDX.items()}
 UNK_IDX = VOCAB_SIZE  # dedicated unknown index (outside policy range, handled by caller mask)

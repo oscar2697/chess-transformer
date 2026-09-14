@@ -127,9 +127,17 @@ def run_train(data_path=None, epochs=2, batch_size=16, lr=3e-4, representation="
 
     start_ep, history, best = 0, [], float("inf")
     last_ckpt = ckpt_dir / "last.pt"
+    import hashlib
+    from src.data.pgn_parser import VOCAB
+    vocab_sha = hashlib.sha1(json.dumps(VOCAB).encode()).hexdigest()
     if resume and last_ckpt.exists():
         try:
             ck = torch.load(str(last_ckpt), map_location=device, weights_only=False)
+            if ck.get("vocab_sha") not in (None, vocab_sha):
+                raise RuntimeError(
+                    "checkpoint fue entrenado con OTRO vocabulario de movimientos "
+                    "(los logits no corresponden a las mismas jugadas); "
+                    "empezar desde cero o cambiar run_id")
             model.load_state_dict(ck["model"])
             opt.load_state_dict(ck["optimizer"])
             try:
@@ -237,7 +245,7 @@ def run_train(data_path=None, epochs=2, batch_size=16, lr=3e-4, representation="
             torch.save(model.state_dict(), ckpt_dir / "best_model.pt")
         torch.save({"epoch": ep, "model": model.state_dict(), "optimizer": opt.state_dict(),
                     "scheduler": sched.state_dict(), "scaler": scaler.state_dict(),
-                    "history": history, "best": best}, last_ckpt)
+                    "history": history, "best": best, "vocab_sha": vocab_sha}, last_ckpt)
         msg = f"Epoch {ep} loss {avg:.4f} (ce {avg_ce:.4f} mse {avg_mse:.4f})"
         if vavg is not None:
             msg += f" val {vavg:.4f}"
