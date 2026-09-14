@@ -60,6 +60,12 @@ class TrainDecision(BaseDecision):
     use_amp: bool = True
     mask_illegal: bool = Field(default=False, description="Mask illegal moves in policy loss.")
     warmup_ratio: float = Field(default=0.0, ge=0.0, le=0.3)
+    value_weight: float = Field(default=1.0, ge=0.1, le=10.0,
+                                description="Weight of the MSE value loss.")
+    value_lr_mult: float = Field(default=1.0, ge=0.1, le=10.0,
+                                 description="LR multiplier for the value head.")
+    init_ckpt: str | None = Field(default=None, description="Init model weights from a "
+                                 "checkpoint path (fresh optimizer); e.g. checkpoints/best_model.pt.")
     num_workers: int = Field(default=2, ge=0, le=8,
                              description="DataLoader workers; use 0 on Windows / python -c.")
     run_id: str | None = Field(default=None, description="Checkpoint/log suffix; use a separate "

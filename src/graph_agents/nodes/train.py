@@ -64,7 +64,8 @@ def _masked_ce_loss(ce, pol, yp, mask):
 
 def run_train(data_path=None, epochs=2, batch_size=16, lr=3e-4, representation="fen_tokens",
               seed=42, resume=True, use_amp=True, num_workers=2, val_every=1,
-              mask_illegal=False, warmup_ratio=0.0, run_id=None, val_topk_sample=2000):
+              mask_illegal=False, warmup_ratio=0.0, run_id=None, val_topk_sample=2000,
+              value_weight=1.0, value_lr_mult=1.0, init_ckpt=None):
     import random
     random.seed(seed)
     torch.manual_seed(seed)
@@ -114,7 +115,23 @@ def run_train(data_path=None, epochs=2, batch_size=16, lr=3e-4, representation="
     use_amp = use_amp and device.type == "cuda"
     model = ChessTransformer(vocab_size=VOCAB_SIZE, fen_vocab=FEN_VOCAB_SIZE,
                              representation=representation).to(device)
-    opt = torch.optim.AdamW(model.parameters(), lr=lr)
+    if init_ckpt and pathlib.Path(init_ckpt).exists():
+        try:
+            state = torch.load(str(init_ckpt), map_location=device, weights_only=True)
+            # accept full checkpoint dicts (last.pt) or bare state_dicts
+            if isinstance(state, dict) and "model" in state:
+                state = state["model"]
+            model.load_state_dict(state)
+            print(f"Initialized weights from {init_ckpt} (fresh optimizer)")
+        except Exception as e:
+            print(f"Could not init from {init_ckpt}: {e}")
+    value_params = list(model.value_head.parameters())
+    value_ids = {id(p) for p in value_params}
+    base_params = [p for p in model.parameters() if id(p) not in value_ids]
+    opt = torch.optim.AdamW([
+        {"params": base_params, "lr": lr},
+        {"params": value_params, "lr": lr * value_lr_mult},
+    ])
     warmup_epochs = max(1, int(epochs * warmup_ratio)) if warmup_ratio > 0 else 0
     if warmup_epochs > 0 and warmup_epochs < epochs:
         warm = torch.optim.lr_scheduler.LinearLR(opt, start_factor=0.1, total_iters=warmup_epochs)
@@ -181,7 +198,7 @@ def run_train(data_path=None, epochs=2, batch_size=16, lr=3e-4, representation="
             valid = yp >= 0
             lpol = ce(pol[valid], yp[valid]) if valid.sum().item() else pol.sum() * 0.0
         lval = mse(val, yv)
-        return lpol + lval, lpol, lval
+        return lpol + value_weight * lval, lpol.detach(), lval.detach()
 
     def _unpack(batch):
         if with_legal:
