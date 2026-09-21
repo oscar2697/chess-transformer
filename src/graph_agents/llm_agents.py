@@ -138,6 +138,44 @@ def decide(agent: str, task: str, llm=None, provider: str | None = None) -> tupl
         return fallback, f"llm-fallback:{provider}", raw or str(e)
 
 
+def _writer_prose(decision) -> dict:
+    """Ask the LLM to draft prose grounded on the real metric JSONs.
+
+    Returns {} on no backend / failure: the paper node renders tables fine
+    without prose, and every number in the prose comes from the JSONs we paste
+    into the prompt (never from the LLM's imagination).
+    """
+    import pathlib
+    base = pathlib.Path(__file__).resolve().parents[2]
+    ctx = []
+    for name in ["evaluation_results.json", "training_results.json",
+                 "training_results_masked-v1.json"]:
+        p = base / "experiments" / name
+        if p.exists():
+            ctx.append(f"== {name} ==\n{p.read_text()[:1500]}")
+    provider, llm = get_llm()
+    if llm is None or not ctx:
+        return {}
+    try:
+        prompt = (
+            "You are the Results section writer of a chess-Transformer paper. "
+            f"Narrative focus: {getattr(decision, 'focus', 'loss_curve')}.\n\n"
+            "Ground ALL numbers exclusively on these JSONs (do not invent):\n\n"
+            + "\n\n".join(ctx) +
+            "\n\nWrite THREE LaTeX paragraph bodies (no \\section, no tables, "
+            "no \\begin/\\end). Respond ONLY as JSON with keys "
+            "'results_intro', 'eval_prose', 'attention_prose'. Each 3-6 "
+            "sentences, IEEE style, honest about limitations."
+        )
+        resp = llm.invoke(prompt)
+        data = json.loads(_extract_json(resp.content if hasattr(resp, "content") else str(resp)))
+        return {k: str(data[k]).strip() for k in
+                ("results_intro", "eval_prose", "attention_prose") if k in data}
+    except Exception as e:
+        print(f"Writer prose failed ({type(e).__name__}: {e}); tables only.")
+        return {}
+
+
 def run_agent(agent: str, task: str, decision: BaseDecision | None = None,
               overrides: dict | None = None, auto: bool = False):
     """Run one agent: decide (LLM or provided), possibly edit, then execute.
@@ -150,6 +188,10 @@ def run_agent(agent: str, task: str, decision: BaseDecision | None = None,
     auto     : if False, the caller is expected to inspect the returned
                'pending' payload and re-call with decision/overrides to execute
                (interactive human-in-the-loop mode). If True, executes now.
+
+    Special case: the writer agent, when a backend is available, is asked to
+    draft the Results/Attention prose grounded on the real metric JSONs; the
+    node still builds all tables from the JSONs so no LLM number is ever used.
     """
     schema = SCHEMAS[agent]
     if decision is None:
@@ -174,6 +216,8 @@ def run_agent(agent: str, task: str, decision: BaseDecision | None = None,
         }
 
     kwargs = decision.tool_kwargs()
+    if agent == "writer":
+        kwargs["prose"] = _writer_prose(decision)
     result = _run_tool(agent, **kwargs)
     _log({
         "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),

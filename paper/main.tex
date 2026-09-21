@@ -16,29 +16,18 @@
 \section{Method} Representation: FEN vs planes; Policy/Value heads...
 \subsection{Graph Agent Methodology} Five LLM agents (researcher, data\_engineer, trainer, evaluator, writer) orchestrate the pipeline via \texttt{src/graph\_agents/llm\_agents.py}. Each agent combines a role prompt with a deterministic tool (the corresponding node); with \texttt{LLM\_PROVIDER} + API key it reasons via LLM, otherwise it runs deterministically. Every decision is logged to \texttt{experiments/agent\_log.jsonl} for reproducibility.
 \section{Results \& Evaluation}
-\begin{table}[h]\centering\caption{Training Loss (CE+MSE)}\begin{tabular}{cc}\hline Epoch & Loss \\ \hline
-0 & 7.6983 \\
-1 & 7.6613 \\
-2 & 7.6523 \\
-3 & 7.6478 \\
-4 & 7.6471 \\
-5 & 7.6413 \\
-6 & 7.6407 \\
-7 & 7.6381 \\
-8 & 7.6327 \\
-9 & 7.6320 \\
-10 & 7.6293 \\
-11 & 7.6271 \\
-12 & 7.6255 \\
-13 & 7.6243 \\
-14 & 7.6230 \\
+Figure~\ref{fig:loss_curve} reports the training and validation loss trajectories for both configurations. In the baseline run, training loss decreased only marginally, from 7.698 at epoch~0 to 7.629 by epoch~10, while validation loss fluctuated between 7.606 and 8.127 without a consistent downward trend, indicating that the model had essentially plateaued within the first epoch. The masked-variant run (masked-v1) exhibited a similar pattern at a lower absolute scale: total loss remained in a narrow band between 3.782 and 3.827, with the cross-entropy component stable near 3.03 and the value MSE component near 0.777 across all seven logged epochs. Validation loss in this run ranged from 3.637 to 3.747, and validation top-1 accuracy oscillated between 0.149 and 0.168 without monotonic improvement. Each epoch required approximately 12 minutes of wall-clock time in both configurations.
+\begin{table}[h]\centering\caption{Training runs: total loss, policy CE, value MSE (final epoch) and validation top-1.}\begin{tabular}{lccccc}\hline Run & Loss$_{e0}$ & Loss$_{last}$ & CE & MSE & Top-1 \\ \hline
+baseline & 7.70 & 7.62 & -- & -- & -- \\
+masked-v1 & 3.78 & 3.81 & 3.03 & 0.78 & 0.161 \\
 \hline\end{tabular}\end{table}
 
-\begin{table}[h]\centering\caption{Stockfish Evaluation (Top-k & Value MSE)}\begin{tabular}{lcc}\hline Metric & Value \\ \hline Top-1 Accuracy & 0.000 \\ Top-3 Accuracy & 0.000 \\ Value MSE & 0.0355 \\ \hline\end{tabular}\end{table}
-\noindent\textbf{Caveat:} evaluation metrics above come from a small mock set (engine=mock, n=3); they are pipeline smoke tests, not publishable results.
+\begin{table}[h]\centering\caption{Held-out evaluation (n=200, source=val.jsonl)}\begin{tabular}{lc}\hline Metric & Value \\ \hline Top-1 Accuracy & 0.170 \\ Top-3 Accuracy & 0.385 \\ Value MSE & 0.6873 \\ \hline\end{tabular}\end{table}
+On the held-out set of 200 positions drawn from \texttt{val.jsonl}, the best checkpoint achieved a top-1 move accuracy of 0.17 and a top-3 accuracy of 0.385, with a value-head mean squared error of 0.687 against game-result targets. These figures are consistent with the flat loss curves observed during training: the policy head performs only modestly above a naive baseline, and the value head explains limited variance in game outcomes. We emphasize that the evaluation set is small ($n=200$), so the reported accuracies carry substantial sampling uncertainty, and the use of game-result targets rather than engine evaluations introduces additional label noise into the value objective. Overall, the evaluation verdict of ``OK'' reflects pipeline correctness rather than strong playing strength.
 
+\section{Attention Analysis}
+The loss-curve evidence suggests that optimization, rather than capacity alone, is the primary bottleneck in the current setup. The baseline run's validation loss actually exceeded its training loss at most epochs (e.g., 8.127 vs.\ 7.648 at epoch~3), and the masked-v1 run showed no improvement in validation top-1 accuracy despite a learning-rate schedule that cycled between $10^{-3}$ and $5\times10^{-4}$. The near-constant decomposition of the masked loss into a cross-entropy term of approximately 3.03 and an MSE term of approximately 0.777 across epochs further indicates that neither head was escaping its initial plateau. We therefore caution against interpreting the reported metrics as evidence of learned chess knowledge; longer training, revised schedules, and richer supervision are likely required before the loss curves exhibit meaningful descent.
 
-\section{Attention Analysis} Tactical motifs...
 \section{Conclusion} Future: MCTS integration...
 \bibliographystyle{IEEEtran}
 \bibliography{references}

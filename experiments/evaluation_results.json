@@ -1,8 +1,10 @@
 {
-  "top1_accuracy": 0.0,
-  "top3_accuracy": 0.0,
-  "value_mse": 0.03552512439949366,
-  "n_positions": 3,
-  "engine_used": "mock",
-  "verdict": "NOT_FOR_PUBLICATION"
+  "top1_accuracy": 0.17,
+  "top3_accuracy": 0.385,
+  "value_mse": 0.6873203037272336,
+  "n_positions": 200,
+  "source": "val.jsonl",
+  "engine_used": "game_result_targets",
+  "ckpt": "checkpoints/best_model.pt",
+  "verdict": "OK"
 }
