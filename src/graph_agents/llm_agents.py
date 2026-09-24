@@ -203,6 +203,10 @@ def run_agent(agent: str, task: str, decision: BaseDecision | None = None,
         mode, raw = "provided", ""
 
     if overrides:
+        unknown = set(overrides) - set(schema.model_fields)
+        if unknown:
+            print(f"WARNING: overrides {sorted(unknown)} are NOT fields of {agent} "
+                  f"schema and will be DROPPED. Known fields: {sorted(schema.model_fields)}")
         merged = decision.model_dump()
         merged.update(overrides)
         decision = schema.model_validate(merged)  # re-validates edited values

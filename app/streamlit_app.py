@@ -1,5 +1,5 @@
 """Streamlit UI: real-look chessboard + play vs ChessTransformer + attention heatmap (RQ3)."""
-import sys, pathlib
+import sys, pathlib, datetime
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 import torch
 import chess
@@ -18,15 +18,27 @@ LIGHT, DARK = "#EBECD9", "#739552"  # modern chess.com-like palette
 
 @st.cache_resource
 def load_model():
-    ckpt = pathlib.Path(__file__).resolve().parents[1] / "checkpoints" / "best_model.pt"
+    base = pathlib.Path(__file__).resolve().parents[1]
+    cands = [base / "checkpoints" / "best_model.pt"] + \
+            list((base / "checkpoints").glob("*/best_model.pt"))
+    cands = sorted((c for c in cands if c.exists()),
+                   key=lambda p: p.stat().st_mtime, reverse=True)
+    if not cands:
+        st.warning("No checkpoint found under checkpoints/; using random init.")
+        model = ChessTransformer(vocab_size=VOCAB_SIZE, fen_vocab=FEN_VOCAB_SIZE, representation="fen_tokens")
+        return model.eval()
+    ckpt = cands[0]
     model = ChessTransformer(vocab_size=VOCAB_SIZE, fen_vocab=FEN_VOCAB_SIZE, representation="fen_tokens")
-    if ckpt.exists():
-        try:
-            model.load_state_dict(torch.load(str(ckpt), map_location="cpu", weights_only=True))
-        except Exception as e:
-            st.warning(f"Could not load {ckpt}: {e}, using random init")
-    model.eval()
-    return model
+    try:
+        state = torch.load(str(ckpt), map_location="cpu", weights_only=True)
+        if isinstance(state, dict) and "model" in state:
+            state = state["model"]
+        model.load_state_dict(state)
+        st.caption(f"Loaded {ckpt.name} from {ckpt.parent.name} "
+                   f"({datetime.datetime.fromtimestamp(ckpt.stat().st_mtime):%Y-%m-%d %H:%M})")
+    except Exception as e:
+        st.warning(f"Could not load {ckpt}: {e}, using random init")
+    return model.eval()
 
 def draw_board(board: chess.Board, selected=None, targets=(), last_move=None):
     """Matplotlib chessboard with outlined pieces for clear white/black distinction."""
