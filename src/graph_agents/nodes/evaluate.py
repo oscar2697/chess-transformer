@@ -14,25 +14,38 @@ TACTICAL_FENS = [
     ("r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4", "c4f7", 0.3),
 ]
 
+def _resolve_ckpt(base, ckpt_path=None):
+    """Resolve the checkpoint to evaluate. Fails loudly instead of silently
+    evaluating a random model: that once produced a misleading 3% result."""
+    if ckpt_path:
+        p = pathlib.Path(ckpt_path)
+        return p if p.is_absolute() else base / p
+    root = base / "checkpoints" / "best_model.pt"
+    if root.exists():
+        return root
+    # newest run dir with a best_model.pt
+    cands = sorted((base / "checkpoints").glob("*/best_model.pt"),
+                   key=lambda p: p.stat().st_mtime, reverse=True)
+    if cands:
+        print(f"checkpoints/best_model.pt missing; using newest run: {cands[0]}")
+        return cands[0]
+    raise FileNotFoundError(
+        "No checkpoint found under checkpoints/. Train first or pass ckpt_path.")
+
 def _load_model(device, ckpt_path=None):
     base = pathlib.Path(__file__).resolve().parents[3]
-    ckpt = pathlib.Path(ckpt_path) if ckpt_path else base / "checkpoints" / "best_model.pt"
-    if not ckpt.is_absolute():
-        ckpt = base / ckpt
+    ckpt = _resolve_ckpt(base, ckpt_path)
     model = ChessTransformer(vocab_size=VOCAB_SIZE, fen_vocab=FEN_VOCAB_SIZE, representation="fen_tokens")
-    if ckpt.exists():
-        try:
-            state = torch.load(str(ckpt), map_location=device, weights_only=True)
-            if isinstance(state, dict) and "model" in state:
-                state = state["model"]
-            model.load_state_dict(state)
-            print(f"Loaded {ckpt}")
-        except Exception as e:
-            print(f"Could not load {ckpt}: {e}, using random init")
-    else:
-        print(f"No checkpoint at {ckpt}, using random init")
+    try:
+        state = torch.load(str(ckpt), map_location=device, weights_only=True)
+        if isinstance(state, dict) and "model" in state:
+            state = state["model"]
+        model.load_state_dict(state)
+        print(f"Loaded {ckpt}")
+    except Exception as e:
+        raise RuntimeError(f"Could not load {ckpt}: {e}") from e
     model.to(device).eval()
-    return model
+    return model, ckpt
 
 def _load_val_sample(base, n):
     val = base / "data" / "processed" / "val.jsonl"
@@ -54,7 +67,7 @@ def _load_val_sample(base, n):
 def run_eval(metrics=None, engine_path=None, out_path=None, n_positions=200, ckpt_path=None):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     base = pathlib.Path(__file__).resolve().parents[3]
-    model = _load_model(device, ckpt_path)
+    model, ckpt_used = _load_model(device, ckpt_path)
     positions = _load_val_sample(base, n_positions)
     source = "val.jsonl"
     if positions is None:
@@ -97,7 +110,7 @@ def run_eval(metrics=None, engine_path=None, out_path=None, n_positions=200, ckp
         "n_positions": total,
         "source": source,
         "engine_used": engine_used,
-        "ckpt": str(ckpt_path) if ckpt_path else "checkpoints/best_model.pt",
+        "ckpt": str(ckpt_used.relative_to(base)) if ckpt_used.is_relative_to(base) else str(ckpt_used),
         "verdict": "OK" if (total >= 100) else "NOT_FOR_PUBLICATION",
     }
     out = pathlib.Path(out_path) if out_path else base / "experiments" / "evaluation_results.json"

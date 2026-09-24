@@ -1,10 +1,10 @@
 {
-  "top1_accuracy": 0.17,
-  "top3_accuracy": 0.385,
-  "value_mse": 0.6873203037272336,
+  "top1_accuracy": 0.155,
+  "top3_accuracy": 0.36,
+  "value_mse": 0.7191632338640239,
   "n_positions": 200,
   "source": "val.jsonl",
   "engine_used": "game_result_targets",
-  "ckpt": "checkpoints/best_model.pt",
+  "ckpt": "checkpoints\\masked-v1\\best_model.pt",
   "verdict": "OK"
 }

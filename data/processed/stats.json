@@ -3,8 +3,8 @@
   "n_val": 30000,
   "dedup": 600000,
   "source": [
-    "/content/chess-transformer/data/raw/lichess_elite_2024-01.pgn",
-    "/content/chess-transformer/data/raw/lichess_elite_2024-02.pgn",
-    "/content/chess-transformer/data/raw/lichess_elite_2024-03.pgn"
+    "/kaggle/working/chess-transformer/data/raw/lichess_elite_2024-01.pgn",
+    "/kaggle/working/chess-transformer/data/raw/lichess_elite_2024-02.pgn",
+    "/kaggle/working/chess-transformer/data/raw/lichess_elite_2024-03.pgn"
   ]
 }
