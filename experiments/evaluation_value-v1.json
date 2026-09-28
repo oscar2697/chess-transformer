@@ -1,0 +1,10 @@
+{
+  "top1_accuracy": 0.14,
+  "top3_accuracy": 0.31,
+  "value_mse": 0.7287723270870174,
+  "n_positions": 200,
+  "source": "val.jsonl",
+  "engine_used": "game_result_targets",
+  "ckpt": "checkpoints\\value-v1\\best_model.pt",
+  "verdict": "OK"
+}
