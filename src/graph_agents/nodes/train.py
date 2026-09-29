@@ -65,7 +65,7 @@ def _masked_ce_loss(ce, pol, yp, mask):
 def run_train(data_path=None, epochs=2, batch_size=16, lr=3e-4, representation="fen_tokens",
               seed=42, resume=True, use_amp=True, num_workers=2, val_every=1,
               mask_illegal=False, warmup_ratio=0.0, run_id=None, val_topk_sample=2000,
-              value_weight=1.0, value_lr_mult=1.0, init_ckpt=None):
+              value_weight=1.0, value_lr_mult=1.0, init_ckpt=None, val_path=None):
     import random
     random.seed(seed)
     torch.manual_seed(seed)
@@ -97,9 +97,19 @@ def run_train(data_path=None, epochs=2, batch_size=16, lr=3e-4, representation="
         if default.exists():
             fens, ucis, vals = _read_jsonl(default)
     v_fens, v_ucis, v_vals = [], [], []
-    default_val = base / "data" / "processed" / "val.jsonl"
-    if default_val.exists():
-        v_fens, v_ucis, v_vals = _read_jsonl(default_val)
+    if val_path:
+        vp = pathlib.Path(val_path)
+        vp = vp if vp.is_absolute() else base / vp
+        if vp.exists():
+            v_fens, v_ucis, v_vals = _read_jsonl(vp)
+    else:
+        # auto: sibling *_engine val if data_path points at an engine train file
+        sibling = None
+        if data_path and "engine" in pathlib.Path(str(data_path)).name:
+            sibling = base / "data" / "processed" / "val_engine.jsonl"
+        default_val = sibling if (sibling and sibling.exists()) else base / "data" / "processed" / "val.jsonl"
+        if default_val.exists():
+            v_fens, v_ucis, v_vals = _read_jsonl(default_val)
     if not fens:
         import chess
         board = chess.Board()

@@ -66,6 +66,8 @@ class TrainDecision(BaseDecision):
                                  description="LR multiplier for the value head.")
     init_ckpt: str | None = Field(default=None, description="Init model weights from a "
                                  "checkpoint path (fresh optimizer); e.g. checkpoints/best_model.pt.")
+    val_path: str | None = Field(default=None, description="Explicit val jsonl; default "
+                                 "auto-detects val_engine.jsonl for engine train files.")
     num_workers: int = Field(default=2, ge=0, le=8,
                              description="DataLoader workers; use 0 on Windows / python -c.")
     run_id: str | None = Field(default=None, description="Checkpoint/log suffix; use a separate "
@@ -79,10 +81,15 @@ class EvalDecision(BaseDecision):
     engine_path: str | None = Field(
         default=None, description="Path to Stockfish binary; None -> mock fallback (flagged).")
     out_path: str | None = Field(default=None, description="Output JSON path; use a sandbox "
-                                 "path for smoke tests (default experiments/evaluation_results.json).")
+                                  "path for smoke tests (default experiments/evaluation_results.json).")
+    ckpt_path: str | None = Field(default=None, description="Checkpoint to evaluate; default "
+                                  "resolves newest under checkpoints/.")
+    val_path: str | None = Field(default=None, description="Val jsonl with targets "
+                                 "(e.g. data/processed/val_engine.jsonl for engine targets).")
 
     def tool_kwargs(self) -> dict:
-        return {"engine_path": self.engine_path, "out_path": self.out_path}
+        return {"engine_path": self.engine_path, "out_path": self.out_path,
+                "ckpt_path": self.ckpt_path, "val_path": self.val_path}
 
 
 class WriterDecision(BaseDecision):

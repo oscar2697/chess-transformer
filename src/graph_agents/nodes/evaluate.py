@@ -47,8 +47,10 @@ def _load_model(device, ckpt_path=None):
     model.to(device).eval()
     return model, ckpt
 
-def _load_val_sample(base, n):
-    val = base / "data" / "processed" / "val.jsonl"
+def _load_val_sample(base, n, val_path=None):
+    val = pathlib.Path(val_path) if val_path else base / "data" / "processed" / "val.jsonl"
+    if not val.is_absolute():
+        val = base / val
     if not val.exists():
         return None
     rows = []
@@ -64,21 +66,24 @@ def _load_val_sample(base, n):
     rng = random.Random(123)  # fixed: eval subset is part of the protocol
     return rng.sample(rows, n) if n < len(rows) else rows
 
-def run_eval(metrics=None, engine_path=None, out_path=None, n_positions=200, ckpt_path=None):
+def run_eval(metrics=None, engine_path=None, out_path=None, n_positions=200,
+             ckpt_path=None, val_path=None):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     base = pathlib.Path(__file__).resolve().parents[3]
     model, ckpt_used = _load_model(device, ckpt_path)
-    positions = _load_val_sample(base, n_positions)
-    source = "val.jsonl"
+    positions = _load_val_sample(base, n_positions, val_path)
+    source = pathlib.Path(val_path).name if val_path else "val.jsonl"
     if positions is None:
         positions = TACTICAL_FENS
         source = "tactical_smoke"
-    engine_used = "stockfish" if (engine_path and pathlib.Path(engine_path).exists()) else "game_result_targets"
+    engine_used = "stockfish" if (engine_path and pathlib.Path(engine_path).exists()) else \
+        ("engine_eval_targets" if "engine" in source else "game_result_targets")
 
     # Batch for speed
     B = 64
     top1 = top3 = total = 0
     mse_sum = 0.0
+    preds, targets_all = [], []
     for i in range(0, len(positions), B):
         chunk = positions[i:i+B]
         boards = [chess.Board(f) for f, _, _ in chunk]
@@ -100,13 +105,24 @@ def run_eval(metrics=None, engine_path=None, out_path=None, n_positions=200, ckp
             if topk_uci and topk_uci[0] == best_uci: top1 += 1
             if best_uci in topk_uci: top3 += 1
             total += 1
-            # value target: game result (or Stockfish if provided)
+            preds.append(float(val[j]))
+            targets_all.append(target)
             mse_sum += (float(val[j]) - target) ** 2
+
+    # Pearson r between predicted value and target (RQ2)
+    pearson_r = None
+    if total >= 10:
+        p_t = torch.tensor(preds); t_t = torch.tensor(targets_all)
+        p_c = p_t - p_t.mean(); t_c = t_t - t_t.mean()
+        denom = float(p_c.norm() * t_c.norm())
+        if denom > 0:
+            pearson_r = round(float((p_c * t_c).sum() / denom), 4)
 
     res = {
         "top1_accuracy": top1 / max(total, 1),
         "top3_accuracy": top3 / max(total, 1),
         "value_mse": mse_sum / max(total, 1),
+        "value_pearson_r": pearson_r,
         "n_positions": total,
         "source": source,
         "engine_used": engine_used,
