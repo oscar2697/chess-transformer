@@ -25,7 +25,11 @@ def run_preprocess(pgn_path="data/raw/lichess.pgn", elo_threshold=2000, val_frac
             print(f"Parsing {raw} ...")
             text = raw.read_text(encoding="utf-8", errors="ignore")
             for fen, uci, val in pp.parse_pgn(text, elo_threshold=elo_threshold):
-                h = hashlib.md5(f"{fen}{uci}".encode()).hexdigest()
+                # B5 fix: hash the normalized FEN (first 4 fields: board, turn,
+                # castling, en-passant) + move, so the same position reached via
+                # transpositions with different move counters dedups to one.
+                fen4 = " ".join(fen.split(" ")[:4])
+                h = hashlib.md5(f"{fen4}{uci}".encode()).hexdigest()
                 if h in seen: continue
                 seen.add(h)
                 positions.append((fen, uci, val))

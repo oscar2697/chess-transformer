@@ -194,32 +194,32 @@ def test_eval_flags_mock_as_not_publishable(monkeypatch, tmp_path):
     from src.model.transformer import ChessTransformer
     from src.data.pgn_parser import VOCAB_SIZE, FEN_VOCAB_SIZE
     monkeypatch.setattr(ev_mod, "_load_model",
-                        lambda device: ChessTransformer(vocab_size=VOCAB_SIZE,
-                                                        fen_vocab=FEN_VOCAB_SIZE,
-                                                        d_model=64, n_layers=1,
-                                                        n_heads=2, d_ff=128))
+                        lambda device, ckpt_path=None: (ChessTransformer(
+                            vocab_size=VOCAB_SIZE, fen_vocab=FEN_VOCAB_SIZE,
+                            d_model=64, n_layers=1, n_heads=2, d_ff=128), "mock_ckpt"))
     out = tmp_path / "eval_smoke.json"
-    res = ev_mod.run_eval(out_path=str(out))
-    assert res["engine_used"] == "mock"
+    res = ev_mod.run_eval(out_path=str(out), n_positions=20)
+    # <100 positions -> NOT_FOR_PUBLICATION even with real data (guardrail)
     assert res["verdict"] == "NOT_FOR_PUBLICATION"
     assert json.loads(out.read_text())["verdict"] == "NOT_FOR_PUBLICATION"
 
 
 def test_paper_injects_caveat_for_mock_eval():
     from src.graph_agents.nodes.paper import build_results_section
-    sec = build_results_section([{"epoch": 0, "loss": 1.0}],
+    sec = build_results_section({"masked-v1": [{"epoch": 0, "loss": 1.0}]},
                                 {"top1_accuracy": 0.0, "top3_accuracy": 0.0,
                                  "value_mse": 0.05, "n_positions": 3,
-                                 "engine_used": "mock", "verdict": "NOT_FOR_PUBLICATION"})
+                                 "source": "tactical_smoke",
+                                 "verdict": "NOT_FOR_PUBLICATION"})
     assert "Caveat" in sec and "not publishable" in sec
 
 
 def test_paper_no_caveat_for_real_eval():
     from src.graph_agents.nodes.paper import build_results_section
-    sec = build_results_section([{"epoch": 0, "loss": 1.0}],
+    sec = build_results_section({"masked-v1": [{"epoch": 0, "loss": 1.0}]},
                                 {"top1_accuracy": 0.4, "top3_accuracy": 0.6,
                                  "value_mse": 0.05, "n_positions": 5000,
-                                 "engine_used": "stockfish", "verdict": "OK"})
+                                 "source": "val.jsonl", "verdict": "OK"})
     assert "Caveat" not in sec
 
 
@@ -228,6 +228,20 @@ def test_runner_reset(runner_env):
     r.propose(); r.approve()
     r.reset()
     assert r.next_agent() == "researcher" and r.status()["done"] == []
+
+
+# ---- data integrity regressions ---------------------------------------------
+
+def test_fen_vocab_roundtrip():
+    """B1 regression: no char of any real FEN maps to PAD (nothing silently dropped)."""
+    from src.data.pgn_parser import fen_to_tokens, FEN_TO_IDX, PAD_FEN_IDX
+    fens = ["rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR w KQkq e3 0 1",
+            "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4",
+            "8/8/8/8/8/8/8/K6k w - - 99 90"]
+    for fen in fens:
+        fen_to_tokens(fen)  # must not warn
+        lost = [c for c in fen if FEN_TO_IDX.get(c, PAD_FEN_IDX) == PAD_FEN_IDX]
+        assert not lost, f"FEN chars lost to PAD: {lost} in {fen}"
 
 
 # model health 

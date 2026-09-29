@@ -87,6 +87,15 @@ SPECIAL = {"<pad>": VOCAB_SIZE+1, "<unk>": UNK_IDX, "[CLS]": VOCAB_SIZE+2, "[SEP
 
 # FEN tokenization: piece chars + ranks/files + turn/castling. Index 0 reserved for <pad>.
 FEN_VOCAB = ["<pad>"] + list("prnbqkPRNBQK12345678/ w b KQkq -")  # char-level
+# B1 fix: the literal above contains duplicate chars (' ', 'b', 'K', 'Q', 'k', 'q'),
+# so slots 24-31 are dead (FEN_TO_IDX always maps those chars to their FIRST
+# occurrence; those embedding rows are never used by any sequence). Reclaim them
+# for the chars the literal was missing: halfmove/fullmove digits '0'/'9' (present
+# in every FEN) and en-passant file letters a,c,d,e,f,g. Existing indices are
+# untouched -> old checkpoints (masked-v1 / value-v1) stay fully loadable.
+# Note: ep-file letters b,k,q,r,n,p map to the piece chars (present, minor blur).
+for _i, _c in {24: "0", 25: "9", 26: "a", 27: "c", 28: "d", 29: "e", 30: "f", 31: "g"}.items():
+    FEN_VOCAB[_i] = _c
 FEN_TO_IDX = {c:i for i,c in enumerate(FEN_VOCAB)}
 PAD_FEN_IDX = 0
 

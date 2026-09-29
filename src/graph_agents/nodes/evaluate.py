@@ -126,7 +126,9 @@ def run_eval(metrics=None, engine_path=None, out_path=None, n_positions=200,
         "n_positions": total,
         "source": source,
         "engine_used": engine_used,
-        "ckpt": str(ckpt_used.relative_to(base)) if ckpt_used.is_relative_to(base) else str(ckpt_used),
+        "ckpt": (str(ckpt_used.relative_to(base))
+                 if isinstance(ckpt_used, pathlib.Path) and ckpt_used.is_relative_to(base)
+                 else str(ckpt_used)),
         "verdict": "OK" if (total >= 100) else "NOT_FOR_PUBLICATION",
     }
     out = pathlib.Path(out_path) if out_path else base / "experiments" / "evaluation_results.json"

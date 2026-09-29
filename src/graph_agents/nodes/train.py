@@ -171,6 +171,27 @@ def run_train(data_path=None, epochs=2, batch_size=16, lr=3e-4, representation="
                 sched.load_state_dict(ck["scheduler"])
             except (ValueError, KeyError) as e:
                 print(f"Scheduler state incompatible (config changed), rebuilding: {e}")
+            # B2 fix: chunked runs (resume with the same small `epochs`) restart the
+            # cosine cycle at peak LR every call -> sawtooth schedule. Rebuild the
+            # cosine over the REMAINING epochs starting from the saved LR, so the
+            # decay is monotonic within and across chunks.
+            saved_lr = opt.param_groups[0]["lr"]
+            if saved_lr <= 1e-6:
+                print("Saved LR ~0 (previous cosine finished decaying); "
+                      "consider a fresh run with the full epoch budget")
+            else:
+                # B2 fix: CosineAnnealingLR is PERIODIC (it climbs back to peak
+                # after reaching eta_min) -> chunked resume runs produce a
+                # sawtooth schedule. Replace it with a monotone LambdaLR that
+                # decays from the saved LR to 0 over the remaining epochs and
+                # can never revive (max(0, .) clamp).
+                init_lr = opt.param_groups[0].get("initial_lr", saved_lr)
+                factor = saved_lr / max(init_lr, 1e-12)
+                remaining = max(epochs - (ck["epoch"] + 1), 1)
+                sched = torch.optim.lr_scheduler.LambdaLR(
+                    opt, lambda e, r=remaining, f=factor: max(0.0, f * (1.0 - (e + 1) / r)))
+                print(f"Replaced cosine with monotone decay over {remaining} "
+                      f"remaining epochs from LR {saved_lr:.2e} (no peak restart)")
             if use_amp and "scaler" in ck:
                 scaler.load_state_dict(ck["scaler"])
             start_ep = ck["epoch"] + 1
