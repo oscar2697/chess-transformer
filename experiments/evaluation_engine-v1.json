@@ -1,0 +1,11 @@
+{
+  "top1_accuracy": 0.26,
+  "top3_accuracy": 0.425,
+  "value_mse": 0.02239059854854074,
+  "value_pearson_r": -0.0,
+  "n_positions": 200,
+  "source": "val_engine.jsonl",
+  "engine_used": "engine_eval_targets",
+  "ckpt": "checkpoints/engine-v1/best_model.pt",
+  "verdict": "OK"
+}

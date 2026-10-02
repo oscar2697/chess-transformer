@@ -1,0 +1,7 @@
+{
+  "n_train": 71278,
+  "coverage_train": 0.125,
+  "n_val": 5407,
+  "coverage_val": 0.18,
+  "evals_scanned": 75818916
+}
