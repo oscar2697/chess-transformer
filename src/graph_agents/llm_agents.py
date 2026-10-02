@@ -148,11 +148,13 @@ def _writer_prose(decision) -> dict:
     import pathlib
     base = pathlib.Path(__file__).resolve().parents[2]
     ctx = []
-    for name in ["evaluation_results.json", "training_results.json",
-                 "training_results_masked-v1.json"]:
+    for name in ["evaluation_results.json", "evaluation_engine-v1.json",
+                 "training_results.json", "training_results_masked-v1.json",
+                 "training_results_value-v1.json", "training_results_engine-v1.json",
+                 "engine_targets_stats.json"]:
         p = base / "experiments" / name
         if p.exists():
-            ctx.append(f"== {name} ==\n{p.read_text()[:1500]}")
+            ctx.append(f"== {name} ==\n{p.read_text()[:1800]}")
     provider, llm = get_llm()
     if llm is None or not ctx:
         return {}
